@@ -19,3 +19,15 @@ yarn-error.log*
 # 3) macOS / Windows junk
 .DS_Store
 Thumbs.db
+
+# ML Specific
+ml/model.pkl # To ignore your trained model file (for the trained model file)
+ml/data/     # To ignore your raw data files (for the data folder)
+
+# Python / Django
+__pycache__/
+*.py[cod]
+db.sqlite3
+*.log
+.env
+venv/
