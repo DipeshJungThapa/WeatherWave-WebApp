@@ -19,12 +19,12 @@ from django.contrib import admin
 from django.urls import path
 
 from django.urls import path
-from . import views
+from forecast.views import * 
 
 urlpatterns = [
      path("admin/", admin.site.urls),
-    path('weather', views.get_current_weather),
-    path('aqi', views.get_aqi),
-    path('predict', views.predict_temp),
+    path('weather/', get_current_weather),
+    path('aqi/', get_aqi),
+    path('predict/', predict_temp),
 ]
 
