@@ -18,6 +18,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from django.urls import path
+from . import views
+
 urlpatterns = [
-    path("admin/", admin.site.urls),
+     path("admin/", admin.site.urls),
+    path('weather', views.get_current_weather),
+    path('aqi', views.get_aqi),
+    path('predict', views.predict_temp),
 ]
+
