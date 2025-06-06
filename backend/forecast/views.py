@@ -5,38 +5,54 @@ from rest_framework import status
 from .models import Weather
 from .serializers import WeatherSerializer
 import requests
+import datetime
 
 def get_weatherapi_weather(lat, lon, api_key):
-   
-    url = (
+    # Get current weather
+    current_url = (
         f"http://api.weatherapi.com/v1/current.json?"
         f"key={api_key}&q={lat},{lon}&aqi=yes"
     )
+    result = {}
+
     try:
-        response = requests.get(url)
+        response = requests.get(current_url)
         response.raise_for_status()
         data = response.json()
         location = data['location']
         current = data['current']
-        # Display AQI if available
-        if 'air_quality' in current:
-            aqi = current['air_quality']
-            print("Air Quality Index (AQI):")
-            print(f"  - CO: {aqi.get('co')}")
-            print(f"  - NO2: {aqi.get('no2')}")
-            print(f"  - O3: {aqi.get('o3')}")
-            print(f"  - SO2: {aqi.get('so2')}")
-            print(f"  - PM2.5: {aqi.get('pm2_5')}")
-            print(f"  - PM10: {aqi.get('pm10')}")
-            print(f"  - US EPA Index: {aqi.get('us-epa-index')}")
-            print(f"  - GB DEFRA Index: {aqi.get('gb-defra-index')}")
-        else:
-            print("Air Quality data not available.")
+        result['current'] = {
+            "location": location,
+            "weather": current,
+            "aqi": current.get('air_quality', {})
+        }
     except requests.RequestException as e:
-        print("Error fetching weather data from WeatherAPI:")
-        print(e)
+        result['current'] = {"error": str(e)}
 
+    # Get past 5 days' weather
+    history = []
+    for i in range(1, 6):
+        date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+        history_url = (
+            f"http://api.weatherapi.com/v1/history.json?"
+            f"key={api_key}&q={lat},{lon}&dt={date}&aqi=yes"
+        )
+        try:
+            resp = requests.get(history_url)
+            resp.raise_for_status()
+            hist_data = resp.json()
+            day_data = hist_data.get('forecast', {}).get('forecastday', [{}])[0]
+            history.append({
+                "date": date,
+                "location": hist_data.get('location', {}),
+                "day": day_data.get('day', {}),
+                "aqi": day_data.get('day', {}).get('air_quality', {})
+            })
+        except requests.RequestException as e:
+            history.append({"date": date, "error": str(e)})
 
+    result['history'] = history
+    return result
 
 def get_geolocation():
     url = "https://ipinfo.io/json"
@@ -100,7 +116,7 @@ def get_aqi(request):
     LATITUDE = "27.7017"  # Example: Kathmandu
     LONGITUDE = "85.320"  # Example: Kathmandu
 
-    # Modified get_weatherapi_weather to return AQI data only(weather ahile liyena yeta bata)
+    # Get current AQI
     url = (
         f"http://api.weatherapi.com/v1/current.json?"
         f"key={API_KEY}&q={LATITUDE},{LONGITUDE}&aqi=yes"
@@ -111,7 +127,7 @@ def get_aqi(request):
         data = response.json()
         current = data.get('current', {})
         aqi = current.get('air_quality', {})
-        return Response({
+        current_aqi = {
             "CO": aqi.get('co'),
             "NO2": aqi.get('no2'),
             "O3": aqi.get('o3'),
@@ -120,12 +136,43 @@ def get_aqi(request):
             "PM10": aqi.get('pm10'),
             "US_EPA_Index": aqi.get('us-epa-index'),
             "GB_DEFRA_Index": aqi.get('gb-defra-index'),
-        })
+        }
     except requests.RequestException as e:
         return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
+
+    # Get past 5 days' AQI history
+    history = []
+    for i in range(1, 6):
+        date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+        history_url = (
+            f"http://api.weatherapi.com/v1/history.json?"
+            f"key={API_KEY}&q={LATITUDE},{LONGITUDE}&dt={date}&aqi=yes"
+        )
+        try:
+            resp = requests.get(history_url)
+            resp.raise_for_status()
+            hist_data = resp.json()
+            day_data = hist_data.get('forecast', {}).get('forecastday', [{}])[0]
+            aqi_data = day_data.get('day', {}).get('air_quality', {})
+            history.append({
+                "date": date,
+                "Weather": {
+                    "avg_temp": day_data.get('day', {}).get('avgtemp_c'),
+                    "max_temp": day_data.get('day', {}).get('maxtemp_c'),
+                    "min_temp": day_data.get('day', {}).get('mintemp_c'),
+                }
+            })
+        except requests.RequestException as e:
+            history.append({"date": date, "error": str(e)})
+
+    return Response({
+        "current_aqi": current_aqi,
+        "history": history
+    })
 
 @api_view(['POST'])
 def predict_temp(request):
     features = request.data  # Expect JSON with features like humidity, wind speed, etc.
     # Load model & predict here
     return Response({"predicted_temp": 28})
+#added 5 din ko kura
