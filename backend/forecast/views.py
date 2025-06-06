@@ -175,3 +175,4 @@ def predict_temp(request):
     features = request.data  # Expect JSON with features like humidity, wind speed, etc.
     # Load model & predict here
     return Response({"predicted_temp": 28})
+#added 5 din ko kura
