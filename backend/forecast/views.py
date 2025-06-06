@@ -29,30 +29,7 @@ def get_weatherapi_weather(lat, lon, api_key):
     except requests.RequestException as e:
         result['current'] = {"error": str(e)}
 
-    # Get past 5 days' weather
-    history = []
-    for i in range(1, 6):
-        date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-        history_url = (
-            f"http://api.weatherapi.com/v1/history.json?"
-            f"key={api_key}&q={lat},{lon}&dt={date}&aqi=yes"
-        )
-        try:
-            resp = requests.get(history_url)
-            resp.raise_for_status()
-            hist_data = resp.json()
-            day_data = hist_data.get('forecast', {}).get('forecastday', [{}])[0]
-            history.append({
-                "date": date,
-                "location": hist_data.get('location', {}),
-                "day": day_data.get('day', {}),
-                "aqi": day_data.get('day', {}).get('air_quality', {})
-            })
-        except requests.RequestException as e:
-            history.append({"date": date, "error": str(e)})
 
-    result['history'] = history
-    return result
 
 def get_geolocation():
     url = "https://ipinfo.io/json"
@@ -140,7 +117,7 @@ def get_aqi(request):
     except requests.RequestException as e:
         return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
 
-    # Get past 5 days' AQI history
+    # 5 din agadi samma ko temperature data
     history = []
     for i in range(1, 6):
         date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
