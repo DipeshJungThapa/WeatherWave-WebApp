@@ -11,20 +11,24 @@ Class-based views
     1. Add an import:  from other_app.views import Home
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
 Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+    1.  Import the include() function: from django.urls import include, path
+    2.  Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
 from django.contrib import admin
 from django.urls import path
+from django.http import JsonResponse
 
-from django.urls import path
 from forecast.views import * 
 
+def home(request):
+    return JsonResponse({"message": "Welcome to WeatherWave API!"})
+
 urlpatterns = [
-     path("admin/", admin.site.urls),
+    path("admin/", admin.site.urls),
     path('weather/', get_current_weather),
     path('aqi/', get_aqi),
     path('predict/', predict_temp),
+    path('', home),  # This handles the root URL
 ]
 
