@@ -29,6 +29,9 @@ def get_weatherapi_weather(lat, lon, api_key):
     except requests.RequestException as e:
         result['current'] = {"error": str(e)}
 
+
+        result['current'] = {"error": str(e)}
+
     # Get past 5 days' weather
     history = []
     for i in range(1, 6):
@@ -140,7 +143,7 @@ def get_aqi(request):
     except requests.RequestException as e:
         return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
 
-    # Get past 5 days' AQI history
+    # 5 din agadi samma ko temperature data
     history = []
     for i in range(1, 6):
         date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
@@ -175,3 +178,4 @@ def predict_temp(request):
     features = request.data  # Expect JSON with features like humidity, wind speed, etc.
     # Load model & predict here
     return Response({"predicted_temp": 28})
+#added 5 din ko kura
