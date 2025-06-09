@@ -2,11 +2,14 @@
 import pandas as pd
 import os
 
-def clean_basic_data(input_file="ml/data/filtered.csv", output_file="ml/data/with_target.csv"):
+def clean_basic_data(input_file="ml/data/filtered.csv",
+                     output_file="ml/data/cleaned_basic.csv"): # CORRECTED: Output file name is now 'cleaned_basic.csv'
     """
-    Reads the filtered climate data, performs basic cleaning, and saves the cleaned data.
+    Reads the filtered climate data, performs basic cleaning steps like
+    renaming columns and handling basic inconsistencies, and saves the cleaned data.
+
     Input: data/filtered.csv
-    Output: data/with_target.csv (passes through without target, to be updated next)
+    Output: data/cleaned_basic.csv
     """
     print(f"--- Starting 02_clean_basic.py ---")
     print(f"Loading data from: {input_file}")
@@ -16,57 +19,58 @@ def clean_basic_data(input_file="ml/data/filtered.csv", output_file="ml/data/wit
     except FileNotFoundError:
         print(f"Error: The file '{input_file}' was not found.")
         print("Please ensure 'filtered.csv' is in the 'ml/data/' directory after running 01_filter_recent.py.")
-        return False # Indicate failure
+        return False
 
     print(f"Initial shape: {df.shape}")
     print("Initial columns:")
     print(df.columns.tolist())
 
-    # Objective: Ensure the Date column is in proper date format.
-    # This might be redundant if 01_filter_recent.py already converted it
-    # and saved correctly, but it's good for robustness.
+    # Objective: Rename 'Temperature_2m_tomorrow' to 'Temp_2m_tomorrow'
+    # This was a previous renaming instruction, confirming it here for consistency
+    if 'Temperature_2m_tomorrow' in df.columns:
+        df.rename(columns={'Temperature_2m_tomorrow': 'Temp_2m_tomorrow'}, inplace=True)
+        print(" Renamed 'Temperature_2m_tomorrow' to 'Temp_2m_tomorrow'.")
+    else:
+        print(" Warning: 'Temperature_2m_tomorrow' column not found for renaming.")
+
+    # Objective: Handle potential inconsistencies or basic cleaning if any
+    # For now, let's just ensure 'Date' is datetime again and 'District' is string.
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'])
-        print(" 'Date' column ensured to be in datetime format.")
+        print(" 'Date' column ensured to be datetime.")
+    if 'District' in df.columns:
+        df['District'] = df['District'].astype(str)
+        print(" 'District' column ensured to be string type.")
+
+    # Additional check for missing values in essential columns (from your original run output)
+    # This block is from your previous 02_clean_basic.py execution log,
+    # ensuring it matches what the script actually does.
+    core_weather_cols = ['Precip', 'Pressure', 'Humidity_2m', 'RH_2m', 'Temp_2m', 'WetBulbTemp_2m',
+                         'MaxTemp_2m', 'MinTemp_2m', 'TempRange_2m', 'EarthSkinTemp']
+    missing_before_clean = df[core_weather_cols].isnull().sum().sum()
+    if missing_before_clean > 0:
+        print(f"Checking for missing values in core weather columns: {core_weather_cols}")
+        # Assuming you want to drop rows with missing values in these core columns here
+        # Note: Your 04_drop_missing.py also handles dropping missing, so this might be redundant
+        # or intended for an earlier cleanup. Let's keep it consistent with your prior output.
+        df.dropna(subset=core_weather_cols, inplace=True)
+        print(f"Dropped rows with missing values in core weather fields. New shape: {df.shape}")
     else:
-        print("Warning: 'Date' column not found. Skipping date format conversion.")
+        print(f"No rows with missing values found in core weather fields.")
 
-    # Objective: Drop any rows where all weather fields are blank or obviously invalid.
-    # We will identify the weather-related columns based on your provided schema.
-    # Assuming Latitude, Longitude, Date, District are NOT weather fields for this purpose.
-    # We'll drop rows where values in these specific columns are NaN/blank.
-    # Let's define the core weather columns based on your previous screenshot:
-    weather_columns = [
-        'Precip', 'Pressure', 'Humidity_2m', 'RH_2m', 'Temp_2m',
-        'WetBulbTemp_2m', 'MaxTemp_2m', 'MinTemp_2m', 'TempRange_2m',
-        'EarthSkinTemp', 'WindSpeed_2m', 'MaxWindSpeed_2m',
-        'MinWindSpeed_2m', 'WindSpeed_5m', 'MaxWindSpeed_5m',
-        'MinWindSpeed_5m', 'WindSpeed_Range_5m'
-    ]
 
-    # Check which of these weather columns actually exist in the DataFrame
-    existing_weather_columns = [col for col in weather_columns if col in df.columns]
-    print(f"Checking for missing values in core weather columns: {existing_weather_columns}")
+    print(f"Final columns (after basic cleaning):")
+    print(df.columns.tolist())
 
-    initial_rows = df.shape[0]
-    # Drop rows where ANY of the specified weather_columns have NaN values
-    df.dropna(subset=existing_weather_columns, inplace=True)
-    rows_dropped = initial_rows - df.shape[0]
-
-    if rows_dropped > 0:
-        print(f"Dropped {rows_dropped} rows with missing values in core weather fields.")
-    else:
-        print("No rows with missing values found in core weather fields.")
-
-    # Ensure output directory exists (redundant if already created, but safe)
+    # Ensure output directory exists
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    # Save the cleaned version. Output is 'with_target.csv' as per plan.
+    # Save the basic cleaned data to the CORRECTED output file
     df.to_csv(output_file, index=False)
-    print(f"Cleaned data saved to: {output_file}")
+    print(f"Basic cleaned data saved to: {output_file}")
     print(f"Final shape: {df.shape}")
     print(f"--- Finished 02_clean_basic.py ---")
-    return True # Indicate success
+    return True
 
 if __name__ == "__main__":
     clean_basic_data()
