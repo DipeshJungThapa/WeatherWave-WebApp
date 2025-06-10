@@ -27,6 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'Login_Auth.CustomUser'
+
+AUTHENTICATION_BACKENDS = ["Login_Auth.auth_backend.EmailAuthBackend"]
 
 # Application definition
 
@@ -38,7 +41,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt",
     "forecast",
+    "Login_Auth",
+    "knox"
 ]
 
 MIDDLEWARE = [
@@ -51,6 +57,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'knox.auth.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
 ROOT_URLCONF = "weatherwave_project.urls"
 
 TEMPLATES = [
