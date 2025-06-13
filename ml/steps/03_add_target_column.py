@@ -8,7 +8,7 @@ def add_target_column(input_file="ml/data/with_target.csv", output_file="ml/data
     Input: data/with_target.csv
     Output: data/with_target.csv (overwrites the input with the added column)
     """
-    print(f"--- Starting 03_add_target_column.py ---")
+    print(f"--- Starting 03_add_target_column.py ---")  
     print(f"Loading data from: {input_file}")
 
     try:
