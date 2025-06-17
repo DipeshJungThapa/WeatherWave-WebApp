@@ -46,3 +46,30 @@ __pycache__/
 
 # OS clutter
 .DS_Store
+
+# Node modules
+node_modules/
+package-lock.json # This specifically ignores package-lock.json if it appears outside frontend/
+npm-debug.log*
+yarn-error.log*
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Django specific
+db.sqlite3
+*.log
+
+# ML specific (as previously discussed)
+ml/data/*.csv
+ml/models/*.pkl
+
+# VS Code specific
+.vscode/
+.history/
+tempCodeRunnerFile.py
