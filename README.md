@@ -176,6 +176,9 @@ The backend provides the following REST API endpoints:
 - Random Forest Regressor for temperature prediction
 - joblib for model serialization
 
+**Deployment:**
+- Frontend: Netlify
+- Backend: Heroku/Render
 
 ---
 
@@ -197,7 +200,7 @@ The ML pipeline consists of 7 sequential steps:
 
 ## 🤝 Team Members
 
-- **Dipesh Thapa** (Frontend, ML Integration)
+- **Dipesh Thapa** (Team Lead, Frontend, ML Integration)
 - **Aryam Ghimire** (ML Engineer)
 - **Prashanna Chand** (Backend Developer)
 - **Tathastu Subedi** (UI/UX Designer & QA)
@@ -213,3 +216,4 @@ The ML pipeline consists of 7 sequential steps:
 
 ---
 
+*WeatherWave-WebApp: Bringing reliable, localized weather intelligence to Nepal—online or offline.* 🇳🇵
