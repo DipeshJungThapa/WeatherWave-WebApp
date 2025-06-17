@@ -31,3 +31,18 @@ db.sqlite3
 *.log
 .env
 venv/
+
+# Ignore large/binary/model files
+*.pkl
+*.csv
+
+# Ignore model and data folders
+ml/models/
+ml/data/
+
+# Python-specific
+__pycache__/
+*.ipynb_checkpoints/
+
+# OS clutter
+.DS_Store
