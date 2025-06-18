@@ -45,3 +45,4 @@ urlpatterns = router.urls + [
     path('', home),
 ]
 
+yeslai ahile delete garne

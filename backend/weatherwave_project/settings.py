@@ -88,11 +88,12 @@ WSGI_APPLICATION = "weatherwave_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    'default': dj_database_url.parse(
+        "postgresql://postgres:weatherwave@db.jkjmpavogwqhlwdoqopm.supabase.co:5432/postgres"
+    )
 }
 
 
