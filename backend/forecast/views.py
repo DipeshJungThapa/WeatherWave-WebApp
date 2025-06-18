@@ -29,30 +29,7 @@ def get_weatherapi_weather(lat, lon, api_key):
     except requests.RequestException as e:
         result['current'] = {"error": str(e)}
 
-    # Get past 5 days' weather
-    history = []
-    for i in range(1, 6):
-        date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-        history_url = (
-            f"http://api.weatherapi.com/v1/history.json?"
-            f"key={api_key}&q={lat},{lon}&dt={date}&aqi=yes"
-        )
-        try:
-            resp = requests.get(history_url)
-            resp.raise_for_status()
-            hist_data = resp.json()
-            day_data = hist_data.get('forecast', {}).get('forecastday', [{}])[0]
-            history.append({
-                "date": date,
-                "location": hist_data.get('location', {}),
-                "day": day_data.get('day', {}),
-                "aqi": day_data.get('day', {}).get('air_quality', {})
-            })
-        except requests.RequestException as e:
-            history.append({"date": date, "error": str(e)})
 
-    result['history'] = history
-    return result
 
 def get_geolocation():
     url = "https://ipinfo.io/json"
@@ -113,8 +90,11 @@ def get_current_weather(request):
 @api_view(['GET'])
 def get_aqi(request):
     API_KEY = "4b6340b064804275bff164431252305"
-    LATITUDE = "27.7017"  # Example: Kathmandu
-    LONGITUDE = "85.320"  # Example: Kathmandu
+    geo= get_geolocation()
+    if not geo or not geo.get("latitude") or not geo.get("longitude"):
+        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    LATITUDE = geo["latitude"]
+    LONGITUDE = geo["longitude"]
 
     # Get current AQI
     url = (
@@ -139,8 +119,21 @@ def get_aqi(request):
         }
     except requests.RequestException as e:
         return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
+    
+    return Response({
+        "current_aqi": current_aqi,
+     })
+    
 
-    # Get past 5 days' AQI history
+@api_view(['GET'])
+def get_weather_history(request):
+    API_KEY = "4b6340b064804275bff164431252305"
+    geo= get_geolocation()
+    if not geo or not geo.get("latitude") or not geo.get("longitude"):
+        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    LATITUDE = geo["latitude"]
+    LONGITUDE = geo["longitude"]
+
     history = []
     for i in range(1, 6):
         date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
@@ -165,10 +158,76 @@ def get_aqi(request):
         except requests.RequestException as e:
             history.append({"date": date, "error": str(e)})
 
+    return Response({"history": history,})
+
+@api_view(['GET'])
+def get_weather_forecast(request):
+    # 5-day/3-hour forecast (returns data every 3 hours for 5 days)
+    API_KEY = "80397f82704fe5be4137c087667e2e31"
+    LATITUDE = "27.7017"  # Example: Kathmandu
+    LONGITUDE = "85.320"  # Example: Kathmandu
+
+    forecast_url = (
+        f"http://api.openweathermap.org/data/2.5/forecast?"
+        f"lat={LATITUDE}&lon={LONGITUDE}&appid={API_KEY}&units=metric"
+    )
+    forecast_data = []
+    try:
+        resp = requests.get(forecast_url)
+        resp.raise_for_status()
+        forecast_json = resp.json()
+        # Group by date and get min/max/avg for each day
+        daily = {}
+        for entry in forecast_json.get('list', []):
+            date = entry['dt_txt'].split(' ')[0]
+            temp = entry['main']['temp']
+            if date not in daily:
+                daily[date] = {"temps": []}
+            daily[date]["temps"].append(temp)
+        # Only keep the next 5 days
+        for i, (date, vals) in enumerate(daily.items()):
+            if i >= 5:
+                break
+            temps = vals["temps"]
+            forecast_data.append({
+                "date": date,
+                "Weather": {
+                    "avg_temp": sum(temps) / len(temps),
+                    "max_temp": max(temps),
+                    "min_temp": min(temps),
+                }
+            })
+    except requests.RequestException as e:
+        forecast_data.append({"error": str(e)})
+
     return Response({
-        "current_aqi": current_aqi,
-        "history": history
+        "forecast": forecast_data
     })
+
+@api_view(['GET'])
+def get_alert(request):
+    API_KEY = "4b6340b064804275bff164431252305"
+    geo= get_geolocation()
+    if not geo or not geo.get("latitude") or not geo.get("longitude"):
+        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    LATITUDE = geo["latitude"]
+    LONGITUDE = geo["longitude"]
+    alert_url = (
+        f"http://api.weatherapi.com/v1/alerts.json?"
+        f"key={API_KEY}&q={LATITUDE},{LONGITUDE}"
+    )
+    try:
+        response = requests.get(alert_url)
+        response.raise_for_status()
+        data = response.json()
+        alerts = data.get('alerts', {}).get('alert', [])
+        if not alerts:
+            return Response({"message": "No weather alerts at this time."})
+        return Response({"alerts": alerts})
+    except requests.RequestException as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
 
 @api_view(['POST'])
 def predict_temp(request):
