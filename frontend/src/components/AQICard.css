@@ -1,0 +1,20 @@
+/* src/components/AQICard.css */
+.aqi-card {
+  border: 1px solid #444;
+  padding: 1rem;
+  margin: 10px; /* Kept for individual card spacing */
+  background-color: #333;
+  color: white;
+  border-radius: 8px;
+  width: 250px;
+  box-sizing: border-box;
+}
+
+.aqi-card-title {
+  margin: 0 0 10px 0;
+  color: #28a745; /* Green for AQI */
+}
+
+.aqi-card-item {
+  margin-bottom: 5px;
+}
