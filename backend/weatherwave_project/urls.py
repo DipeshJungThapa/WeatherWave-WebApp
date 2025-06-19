@@ -16,6 +16,7 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.contrib.auth.decorators import login_required
 from django.urls import path,include
 from django.http import JsonResponse
 from forecast.views import * 
@@ -33,7 +34,7 @@ def home(request):
 
 urlpatterns = router.urls + [
     path("admin/", admin.site.urls),
-    path("logoutall/",knox_views.LoginView.as_view(), name="knox_logoutall"),
+    path("login/",knox_views.LoginView.as_view(), name="knox_logoutall"),
     path("logout/", knox_views.LogoutView.as_view(), name="knox_logout"),
     path('weather/', get_current_weather),
     path('aqi/', get_aqi),
@@ -41,8 +42,9 @@ urlpatterns = router.urls + [
     path('history/', get_weather_history),
     path('forecast/', get_weather_forecast),
     path("alert/",get_alert),
+    path('favourite/', login_required(include('favourite.urls'))),
+    #path('favourite/', include('favourite.urls')),
     #path("api/auth/", include('knox.urls')), 
     path('', home),
 ]
 
-yeslai ahile delete garne
