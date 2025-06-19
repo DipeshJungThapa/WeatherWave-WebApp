@@ -43,8 +43,8 @@ urlpatterns = router.urls + [
     path('history/', get_weather_history),
     path('forecast/', get_weather_forecast),
     path("alert/",get_alert),
-    path('favourite/', login_required(include('favourite.urls'))),
-    #path('favourite/', include('favourite.urls')),
+    #path('favourite/', login_required(include('favourite.urls'))),
+    path('favourite/', include('favourite.urls')),
     #path("api/auth/", include('knox.urls')), 
     path('', home),
 ]
