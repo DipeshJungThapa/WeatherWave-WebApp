@@ -45,8 +45,12 @@ INSTALLED_APPS = [
     "forecast",
     "Login_Auth",
     "knox",
-    "corsheaders"
+    "corsheaders",
+    "favourite",  
 ]
+
+LOGIN_URL = '/login/'
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
