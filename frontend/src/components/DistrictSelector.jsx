@@ -1,23 +1,26 @@
 // src/components/DistrictSelector.jsx
-import React from 'react';
-import './DistrictSelector.css'; // Import the new CSS file
+import React, { useContext } from "react"; 
+import { DistrictContext } from "../context/DistrictContext"; 
+import "./DistrictSelector.css";
 
-export default function DistrictSelector({ district, onChange }) {
+const DistrictSelector = () => {
+  const { district, setDistrict } = useContext(DistrictContext);
+
+  const handleChange = (e) => {
+    setDistrict(e.target.value); 
+  };
+
   return (
     <div className="district-selector-container">
-      <label htmlFor="district-select" className="district-selector-label">Select District:</label>
-      <select
-        id="district-select"
-        value={district}
-        onChange={e => onChange(e.target.value)}
-        className="district-selector-dropdown"
-      >
-        <option value="">Select District</option>
+      <label className="district-selector-label">Select District:</label>
+      <select value={district} onChange={handleChange} className="district-selector-dropdown">
         <option value="Kathmandu">Kathmandu</option>
         <option value="Pokhara">Pokhara</option>
         <option value="Lalitpur">Lalitpur</option>
-        {/* Add more districts as needed */}
+        
       </select>
     </div>
   );
-}
+};
+
+export default DistrictSelector;
