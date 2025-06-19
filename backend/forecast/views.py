@@ -235,3 +235,35 @@ def predict_temp(request):
     # Load model & predict here
     return Response({"predicted_temp": 28})
 #added 5 din ko kura
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import requests
+
+@api_view(['POST'])
+def get_current_weather_default(request):
+    # Get city name from POST data (text input)
+    city = request.data.get('city')
+    if not city:
+        return Response({'error': 'City field is required in the request body.'}, status=400)
+    
+    api_key = '80397f82704fe5be4137c087667e2e31'
+    url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric'
+    
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if response.status_code != 200:
+            return Response({'error': data.get('message', 'Failed to fetch weather data.')}, status=response.status_code)
+        
+        weather = {
+            'city': data['name'],
+            'temperature': data['main']['temp'],
+            'description': data['weather'][0]['description'],
+            'humidity': data['main']['humidity'],
+            'wind_speed': data['wind']['speed'],
+        }
+        return Response(weather)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)

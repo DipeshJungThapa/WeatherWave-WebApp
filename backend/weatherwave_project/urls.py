@@ -37,6 +37,7 @@ urlpatterns = router.urls + [
     path("login/",knox_views.LoginView.as_view(), name="knox_logoutall"),
     path("logout/", knox_views.LogoutView.as_view(), name="knox_logout"),
     path('weather/', get_current_weather),
+    path('default_weather/',get_current_weather_default),
     path('aqi/', get_aqi),
     path('predict/', predict_temp),
     path('history/', get_weather_history),
