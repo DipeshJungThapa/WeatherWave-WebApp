@@ -1,38 +1,28 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Favourite
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def add_favourite(request):
-    username = request.data.get('username')
     city = request.data.get('city')
+    if not city:
+        return Response({'error': 'City is required'}, status=400)
+    Favourite.objects.create(user=request.user, city=city)
+    return Response({'message': f'City "{city}" added to favourites for user "{request.user.email}"'})
 
-    if not username or not city:
-        return Response({'error': 'Username and city are required'}, status=400)
-
-    Favourite.objects.create(username=username, city=city)
-    return Response({'message': f'City "{city}" added to favourites for user "{username}"'})
-
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_favourites(request):
-    username = request.query_params.get('username') if request.method == 'GET' else request.data.get('username')
-
-    if not username:
-        return Response({'error': 'Username is required'}, status=400)
-
-    favs = Favourite.objects.filter(username=username)
+    favs = Favourite.objects.filter(user=request.user)
     data = [{"id": fav.id, "city": fav.city} for fav in favs]
     return Response({'favourites': data})
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def remove_favourite(request, favourite_id):
-    username = request.data.get('username')
-
-    if not username:
-        return Response({'error': 'Username is required'}, status=400)
-
-    result = Favourite.objects.filter(id=favourite_id, username=username).delete()
-
+    result = Favourite.objects.filter(id=favourite_id, user=request.user).delete()
     if result[0] == 1:
         return Response({'message': 'Favourite removed'})
     else:
