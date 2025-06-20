@@ -1,6 +1,7 @@
 // src/pages/Login.jsx
-import React from 'react'; // React is often needed for JSX transformation
+import React from 'react';
+import './Login.css'; // Import the CSS file
 
 export default function Login() {
-  return <div style={{ color: 'white', fontSize: '2em', textAlign: 'center', marginTop: '50px' }}>Login</div>; // Simple placeholder
+  return <div className="login-container">Login</div>; // Use className for styling
 }

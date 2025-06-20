@@ -1,14 +1,23 @@
-import React, { createContext, useState } from "react"; // React is needed for createContext and useState
+// src/context/DistrictContext.jsx
+import React, { createContext, useContext, useState } from "react"; // <--- NEW: useContext imported here
 
-export const DistrictContext = createContext(); // This is our "bulletin board"
+export const DistrictContext = createContext();
 
-export const DistrictProvider = ({ children }) => { // This is the part that "manages" the bulletin board
-  const [district, setDistrict] = useState("Kathmandu"); // This is the actual data (current district)
+export const DistrictProvider = ({ children }) => {
+  const [district, setDistrict] = useState("Kathmandu"); // Default district
 
-  // The `value` is what's available to anyone "reading" from the bulletin board
   return (
     <DistrictContext.Provider value={{ district, setDistrict }}>
-      {children} {/* This means any components inside DistrictProvider can access the context */}
+      {children}
     </DistrictContext.Provider>
   );
+};
+
+// <--- NEW: Helper hook to consume the DistrictContext cleanly
+export const useDistrict = () => {
+  const context = useContext(DistrictContext);
+  if (context === undefined) {
+    throw new Error('useDistrict must be used within a DistrictProvider');
+  }
+  return context;
 };
