@@ -1,56 +1,73 @@
 // src/hooks/useWeatherData.js
 import { useEffect, useState } from 'react';
-import { useDistrict } from '../context/DistrictContext'; // <--- Now imports our custom useDistrict hook
 import axios from 'axios';
+import { useDistrict } from '../context/DistrictContext';
+import { useAuth } from '../context/AuthContext'; // <--- NEW IMPORT: useAuth hook
 
-export default function useWeatherData() {
-  const { district } = useDistrict(); // Get the selected district from our global context
-  const [data, setData] = useState({
-    weather: null,
-    aqi: null,
-    prediction: null,
-    loading: true, // Indicates if data is currently being fetched
-    error: null,   // Stores any error message
-  });
+const useWeatherData = (latitude, longitude) => {
+  const { district } = useDistrict();
+  const { token } = useAuth(); // <--- NEW: Get token from AuthContext
+
+  const [weather, setWeather] = useState(null);
+  const [aqi, setAqi] = useState(null);
+  const [prediction, setPrediction] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Only fetch if a district is selected
-    if (!district) {
-      setData(prev => ({ ...prev, loading: false, error: null })); // If no district, not loading, no error
-      return;
-    }
+    const fetchAllData = async () => {
+      setLoading(true);
+      setError(null);
+      setWeather(null);
+      setAqi(null);
+      setPrediction(null);
 
-    const fetchData = async () => {
-      setData(prev => ({ ...prev, loading: true, error: null })); // Start loading, clear previous error
+      // Only fetch if a district or coordinates are available, AND if we have a token (or if token is not required yet)
+      // For now, we fetch even without a token to see the 404s, but later backend will require it
+      if (!district && (!latitude || !longitude)) {
+          setLoading(false);
+          return;
+      }
+
       try {
-        // These are your *future* backend API endpoints
-        const [weatherRes, predictionRes] = await Promise.all([
-          axios.get(`/api/live-weather?district=${district}`), // Example: /api/live-weather?district=Kathmandu
-          axios.post(`/api/predict`, { district }),            // Example: /api/predict with { district: "Kathmandu" }
+        // Dynamically set headers: include Authorization if token exists
+        const headers = token ? { Authorization: `Token ${token}` } : {}; // <--- NEW: Conditional Authorization header
+
+        let locationPayload = {};
+
+        if (latitude && longitude) {
+          locationPayload = { latitude, longitude };
+        } else if (district) {
+          locationPayload = { city: district };
+        } else {
+          setLoading(false);
+          setError("No location data (district or coordinates) available.");
+          return;
+        }
+
+        const [weatherRes, aqiRes, predictRes] = await Promise.all([
+          axios.get('/weather/', { headers, params: locationPayload }),
+          axios.get('/aqi/', { headers, params: locationPayload }),
+          axios.post('/predict/', locationPayload, { headers }),
         ]);
 
-        // Assuming AQI might come within the weather response
-        const aqi = weatherRes.data.aqi ?? null; // Use null if AQI is not provided
+        setWeather(weatherRes.data);
+        setAqi(aqiRes.data);
+        setPrediction(predictRes.data.predicted_Temp_2m_tomorrow);
 
-        setData({
-          weather: weatherRes.data,
-          prediction: predictionRes.data.predicted_Temp_2m_tomorrow, // Assuming this is the exact key
-          aqi,
-          loading: false, // Done loading
-          error: null,    // No error
-        });
-      } catch (error) {
-        console.error("Error fetching weather data:", error);
-        setData({
-          weather: null, aqi: null, prediction: null,
-          loading: false, // Done loading, but with an error
-          error: error.message || 'Failed to fetch data', // Capture error message
-        });
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError('Failed to fetch data.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [district]); // Re-run this effect whenever the 'district' changes
+    // Re-run effect when district, latitude, longitude, OR token changes
+    fetchAllData();
+  }, [district, latitude, longitude, token]); // <--- NEW: 'token' added to dependencies
 
-  return data; // Return the current state of data, loading, and error
-}
+  return { weather, aqi, prediction, loading, error };
+};
+
+export default useWeatherData;
