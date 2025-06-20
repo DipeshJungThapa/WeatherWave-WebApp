@@ -1,32 +1,39 @@
 // src/pages/Dashboard.jsx
-import React, { useEffect } from 'react'; // <--- NEW: useEffect imported here
+import React, { useEffect } from 'react';
 import './Dashboard.css';
 import DistrictSelector from '../components/DistrictSelector';
 import WeatherCard from '../components/WeatherCard';
 import AQICard from '../components/AQICard';
 import PredictionCard from '../components/PredictionCard';
 import useWeatherData from '../hooks/useWeatherData';
-import useGeolocation from '../hooks/useGeolocation'; // <--- NEW IMPORT: Our geolocation hook
-import { useDistrict } from '../context/DistrictContext'; // <--- NEW IMPORT: To get selectedDistrict
+import useGeolocation from '../hooks/useGeolocation';
+import { useDistrict } from '../context/DistrictContext';
 
 export default function Dashboard() {
-  const { weather, aqi, prediction, loading, error } = useWeatherData();
-  const { location, permissionDenied } = useGeolocation(); // <--- NEW: Use geolocation hook
-  const { district } = useDistrict(); // <--- NEW: Get district from context for logging
+  // Get location data from useGeolocation hook
+  const { location, permissionDenied } = useGeolocation();
+  // Extract latitude and longitude if location is available, otherwise null
+  const latitude = location ? location.lat : null;
+  const longitude = location ? location.lon : null;
 
-  // <--- NEW: Log location or district for verification
+  // Get district from context
+  const { district } = useDistrict();
+
+  // Pass latitude, longitude, and district to useWeatherData
+  // The useWeatherData hook will now decide whether to use lat/lon or district
+  const { weather, aqi, prediction, loading, error } = useWeatherData(latitude, longitude);
+
+  // Effect for logging which location source is being used (for verification)
   useEffect(() => {
-    if (location) {
-      console.log("Geolocation: User location obtained:", location);
-      // Later, we'll use this location for API calls if available
+    if (latitude && longitude) {
+      console.log("Dashboard: Data will be fetched using Geolocation coordinates:", { latitude, longitude });
     } else if (permissionDenied) {
-      console.log("Geolocation: Permission denied or not supported. Falling back to selected district.");
-    } else if (district) {
-      // This will be logged if location is not available and not explicitly denied (e.g. still prompting or error)
-      // or as a fallback
-      console.log("Using selected district for now:", district);
+      console.log("Dashboard: Geolocation permission denied. Data will be fetched using selected district:", district);
+    } else {
+      // This will primarily log when location is not yet available, or falls back to district initially
+      console.log("Dashboard: Geolocation not available or pending. Data will be fetched using selected district:", district);
     }
-  }, [location, permissionDenied, district]); // Re-run when these values change
+  }, [latitude, longitude, permissionDenied, district]); // Dependencies
 
   return (
     <div className="dashboard-container">
@@ -35,8 +42,9 @@ export default function Dashboard() {
       <DistrictSelector />
 
       <div className="dashboard-cards-container">
-        {loading && <p style={{ color: 'white' }}>Loading data for {district}...</p>}
-        {error && <p style={{ color: 'red' }}>Error: {error}. Please try again.</p>}
+        {/* Display loading, error, or data based on the useWeatherData hook */}
+        {loading && <p style={{ color: 'white' }}>Loading data...</p>}
+        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
         {!loading && weather && (
           <>
@@ -49,7 +57,6 @@ export default function Dashboard() {
         {!loading && !error && !weather && (
           <p style={{ color: 'gray' }}>Select a district to fetch data.</p>
         )}
-
       </div>
     </div>
   );
