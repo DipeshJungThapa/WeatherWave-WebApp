@@ -8,32 +8,67 @@ import PredictionCard from '../components/PredictionCard';
 import useWeatherData from '../hooks/useWeatherData';
 import useGeolocation from '../hooks/useGeolocation';
 import { useDistrict } from '../context/DistrictContext';
+import { useAuth } from '../context/AuthContext';
+import useFavourites from '../hooks/useFavourites';
+import { usePreferences } from '../context/PreferencesContext';
 
 export default function Dashboard() {
-  // Get location data from useGeolocation hook
   const { location, permissionDenied } = useGeolocation();
-  // Extract latitude and longitude if location is available, otherwise null
   const latitude = location ? location.lat : null;
   const longitude = location ? location.lon : null;
 
-  // Get district from context
-  const { district } = useDistrict();
+  const { district, setDistrict } = useDistrict();
+  const { token } = useAuth();
+  const { addFavorite, favorites, loading: favLoading, error: favError, removeFavorite } = useFavourites();
 
-  // Pass latitude, longitude, and district to useWeatherData
-  // The useWeatherData hook will now decide whether to use lat/lon or district
-  const { weather, aqi, prediction, loading, error } = useWeatherData(latitude, longitude);
+  const { tempUnit, setTempUnit, windUnit, setWindUnit, theme, setTheme } = usePreferences();
 
-  // Effect for logging which location source is being used (for verification)
+  // Ensure weather object contains temp, humidity, windSpeed, precipitation
+  const { weather, aqi, prediction, loading: weatherLoading, error: weatherError } = useWeatherData(latitude, longitude);
+
   useEffect(() => {
     if (latitude && longitude) {
       console.log("Dashboard: Data will be fetched using Geolocation coordinates:", { latitude, longitude });
     } else if (permissionDenied) {
       console.log("Dashboard: Geolocation permission denied. Data will be fetched using selected district:", district);
     } else {
-      // This will primarily log when location is not yet available, or falls back to district initially
       console.log("Dashboard: Geolocation not available or pending. Data will be fetched using selected district:", district);
     }
-  }, [latitude, longitude, permissionDenied, district]); // Dependencies
+  }, [latitude, longitude, permissionDenied, district]);
+
+  const handleAddFavorite = async () => {
+    if (!token) {
+      alert("Please log in to add favorites.");
+      return;
+    }
+    if (!district) {
+      alert("Please select a district to add to favorites.");
+      return;
+    }
+    await addFavorite(district);
+    alert(`District '${district}' added to favorites! (or attempted to add)`);
+  };
+
+  const handleRemoveFavorite = async (favDistrict) => {
+    if (!token) {
+      alert("Please log in to remove favorites.");
+      return;
+    }
+    await removeFavorite(favDistrict);
+    alert(`District '${favDistrict}' removed from favorites! (or attempted to remove)`);
+  };
+
+  const toggleTempUnit = () => {
+    setTempUnit(prevUnit => prevUnit === 'C' ? 'F' : 'C');
+  };
+
+  const toggleWindUnit = () => {
+    setWindUnit(prevUnit => prevUnit === 'ms' ? 'kmh' : 'ms');
+  };
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
+  };
 
   return (
     <div className="dashboard-container">
@@ -41,23 +76,110 @@ export default function Dashboard() {
 
       <DistrictSelector />
 
-      <div className="dashboard-cards-container">
-        {/* Display loading, error, or data based on the useWeatherData hook */}
-        {loading && <p style={{ color: 'white' }}>Loading data...</p>}
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      {token && (
+        <button
+          onClick={handleAddFavorite}
+          className="add-favorite-button"
+        >
+          ⭐ Add {district || 'current'} to Favorites
+        </button>
+      )}
 
-        {!loading && weather && (
+      <div className="preferences-panel">
+        <div className="preference-group">
+          <label>Temperature Unit:</label>
+          <button
+            onClick={toggleTempUnit}
+            className={tempUnit === 'C' ? 'active-unit-button' : 'unit-button'}
+          >
+            °C
+          </button>
+          <button
+            onClick={toggleTempUnit}
+            className={tempUnit === 'F' ? 'active-unit-button' : 'unit-button'}
+          >
+            °F
+          </button>
+        </div>
+
+        <div className="preference-group">
+          <label>Wind Speed Unit:</label>
+          <button
+            onClick={toggleWindUnit}
+            className={windUnit === 'ms' ? 'active-unit-button' : 'unit-button'}
+          >
+            m/s
+          </button>
+          <button
+            onClick={toggleWindUnit}
+            className={windUnit === 'kmh' ? 'active-unit-button' : 'unit-button'}
+          >
+            km/h
+          </button>
+        </div>
+
+        <div className="preference-group">
+          <label>Theme:</label>
+          <button
+            onClick={toggleTheme}
+            className={theme === 'dark' ? 'active-unit-button' : 'unit-button'}
+          >
+            Dark
+          </button>
+          <button
+            onClick={toggleTheme}
+            className={theme === 'light' ? 'active-unit-button' : 'unit-button'}
+          >
+            Light
+          </button>
+        </div>
+      </div>
+
+
+      {(weatherLoading || favLoading) && <p className="loading-message">Loading data...</p>}
+      {(weatherError || favError) && <p className="error-message">Error: {weatherError || favError}</p>}
+
+      <div className="dashboard-cards-container">
+        {!weatherLoading && weather && (
           <>
-            <WeatherCard temp={weather.Temp_2m} humidity={weather.RH2M} />
+            {/* <--- NEW: Pass windSpeed and precipitation to WeatherCard ---*/}
+            <WeatherCard
+              temp={weather.temp}
+              humidity={weather.humidity}
+              windSpeed={weather.windSpeed}
+              precipitation={weather.precipitation}
+            />
             <AQICard aqi={aqi ?? 'N/A'} />
             <PredictionCard prediction={prediction ?? 'N/A'} />
           </>
         )}
 
-        {!loading && !error && !weather && (
-          <p style={{ color: 'gray' }}>Select a district to fetch data.</p>
+        {!weatherLoading && !weatherError && !weather && (
+          <p className="initial-message">Select a district to fetch data.</p>
         )}
       </div>
+
+      {token && favorites && favorites.length > 0 && (
+        <div className="favorite-districts-section">
+          <h3>Your Favorite Districts:</h3>
+          <div className="favorite-buttons-container">
+            {favorites.map((fav, index) => (
+              <button
+                key={fav.id || index}
+                onClick={() => setDistrict(fav.name || fav)}
+                className="favorite-item-button"
+              >
+                {fav.name || fav}
+                <span
+                  onClick={(e) => { e.stopPropagation(); handleRemoveFavorite(fav.name || fav); }}
+                  className="remove-favorite-button"
+                >❌</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

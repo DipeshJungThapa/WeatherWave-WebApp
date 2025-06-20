@@ -1,71 +1,70 @@
 // src/hooks/useWeatherData.js
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useDistrict } from '../context/DistrictContext';
-import { useAuth } from '../context/AuthContext'; // <--- NEW IMPORT: useAuth hook
+import { useAuth } from '../context/AuthContext';
 
 const useWeatherData = (latitude, longitude) => {
-  const { district } = useDistrict();
-  const { token } = useAuth(); // <--- NEW: Get token from AuthContext
-
+  const { token } = useAuth();
   const [weather, setWeather] = useState(null);
   const [aqi, setAqi] = useState(null);
   const [prediction, setPrediction] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchAllData = async () => {
-      setLoading(true);
-      setError(null);
-      setWeather(null);
+  const fetchData = useCallback(async (lat, lon, districtName) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // --- Fetch Weather Data ---
+      let weatherUrl = 'http://127.0.0.1:8000/weather/';
+      const weatherParams = districtName ? { district: districtName } : { lat, lon };
+      const weatherHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const weatherRes = await axios.get(weatherUrl, { params: weatherParams, headers: weatherHeaders });
+
+      // <--- NEW: Structure the weather data more comprehensively for consistency
+      const fetchedWeather = {
+          temp: weatherRes.data.Temp_2m,
+          humidity: weatherRes.data.RH2M,
+          windSpeed: weatherRes.data.WindSpeed || null, // Assume backend will provide this
+          precipitation: weatherRes.data.Precipitation || null, // Assume backend will provide this
+          // Add other weather fields as they become available from backend
+      };
+      setWeather(fetchedWeather);
+
+      // --- Fetch AQI Data ---
+      let aqiUrl = 'http://127.0.0.1:8000/aqi/';
+      const aqiParams = districtName ? { district: districtName } : { lat, lon };
+      const aqiHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const aqiRes = await axios.get(aqiUrl, { params: aqiParams, headers: aqiHeaders });
+      setAqi(aqiRes.data.AQI_Value); // Assuming API returns AQI value directly for now
+
+      // --- Fetch Prediction Data ---
+      let predictionUrl = 'http://127.0.0.1:8000/predict/';
+      const predictionParams = districtName ? { district: districtName } : { lat, lon };
+      const predictionHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const predictionRes = await axios.get(predictionUrl, { params: predictionParams, headers: predictionHeaders });
+      setPrediction(predictionRes.data.Predicted_Temperature); // Assuming API returns predicted temp directly for now
+
+    } catch (err) {
+      console.error("Error fetching weather data:", err);
+      setError("Failed to fetch data. Please try again.");
+      setWeather(null); // Clear previous data on error
       setAqi(null);
       setPrediction(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
-      // Only fetch if a district or coordinates are available, AND if we have a token (or if token is not required yet)
-      // For now, we fetch even without a token to see the 404s, but later backend will require it
-      if (!district && (!latitude || !longitude)) {
-          setLoading(false);
-          return;
-      }
-
-      try {
-        // Dynamically set headers: include Authorization if token exists
-        const headers = token ? { Authorization: `Token ${token}` } : {}; // <--- NEW: Conditional Authorization header
-
-        let locationPayload = {};
-
-        if (latitude && longitude) {
-          locationPayload = { latitude, longitude };
-        } else if (district) {
-          locationPayload = { city: district };
-        } else {
-          setLoading(false);
-          setError("No location data (district or coordinates) available.");
-          return;
-        }
-
-        const [weatherRes, aqiRes, predictRes] = await Promise.all([
-          axios.get('/weather/', { headers, params: locationPayload }),
-          axios.get('/aqi/', { headers, params: locationPayload }),
-          axios.post('/predict/', locationPayload, { headers }),
-        ]);
-
-        setWeather(weatherRes.data);
-        setAqi(aqiRes.data);
-        setPrediction(predictRes.data.predicted_Temp_2m_tomorrow);
-
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError('Failed to fetch data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Re-run effect when district, latitude, longitude, OR token changes
-    fetchAllData();
-  }, [district, latitude, longitude, token]); // <--- NEW: 'token' added to dependencies
+  useEffect(() => {
+    if (latitude && longitude) {
+      fetchData(latitude, longitude, null);
+    }
+  }, [latitude, longitude, fetchData]);
 
   return { weather, aqi, prediction, loading, error };
 };
