@@ -232,11 +232,44 @@ def get_alert(request):
 
 
 @api_view(['POST'])
-def predict_temp(request):
-    features = request.data  # Expect JSON with features like humidity, wind speed, etc.
-    # Load model & predict here
-    return Response({"predicted_temp": 28})
-#added 5 din ko kura
+def predict_geo(request):
+    #if the request contains geolocation data
+    geo = get_geolocation()
+    if not geo or not geo.get("latitude") or not geo.get("longitude"):
+        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    city = geo["city"]
+    if not city:
+        return Response({"error": "Could not determine city from geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    #load model and input city name
+    from sklearn.externals import joblib
+    model = joblib.load('hamro model ko path')  
+    # Assuming the model expects a single feature input
+    input_data = [[city]] 
+    try:
+        prediction = model.predict(input_data)
+        return Response({"predicted_temp": prediction[0], "second wala component":prediction[1]}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+@api_view(['POST'])
+def predict_city(request):
+    #if the request contains city name
+    city = request.data.get('city')
+    if not city:
+        return Response({"error": "City name is required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    #load model and input city name
+    from sklearn.externals import joblib
+    model = joblib.load('hamro model ko path')  
+    # Assuming the model expects a single feature input
+    input_data = [[city]]
+    try:
+        prediction = model.predict(input_data)
+        return Response({"predicted_temp": prediction[0], "second wala component":prediction[1]}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
