@@ -2,34 +2,16 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+import requests
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from .models import Weather
 from .serializers import WeatherSerializer
 import requests
 import datetime
-
-def get_weatherapi_weather(lat, lon, api_key):
-    # Get current weather
-    current_url = (
-        f"http://api.weatherapi.com/v1/current.json?"
-        f"key={api_key}&q={lat},{lon}&aqi=yes"
-    )
-    result = {}
-
-    try:
-        response = requests.get(current_url)
-        response.raise_for_status()
-        data = response.json()
-        location = data['location']
-        current = data['current']
-        result['current'] = {
-            "location": location,
-            "weather": current,
-            "aqi": current.get('air_quality', {})
-        }
-    except requests.RequestException as e:
-        result['current'] = {"error": str(e)}
-
-
 
 def get_geolocation():
     url = "https://ipinfo.io/json"
@@ -72,7 +54,7 @@ def get_weather(lat, lon, api_key):
 @api_view(['GET'])
 def get_current_weather(request):
     geo = get_geolocation()
-    API_KEY = "80397f82704fe5be4137c087667e2e31"
+    API_KEY = os.getenv('OPENWEATHER_API_KEY')
     if geo and geo["latitude"] and geo["longitude"]:
         weather = get_weather(geo["latitude"], geo["longitude"], API_KEY)
     else:
@@ -87,47 +69,64 @@ def get_current_weather(request):
     })
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+import requests
+
+def compute_pm25_aqi(concentration):
+    breakpoints = [
+        (0.0, 12.0, 0, 50),
+        (12.1, 35.4, 51, 100),
+        (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200),
+        (150.5, 250.4, 201, 300),
+        (250.5, 350.4, 301, 400),
+        (350.5, 500.4, 401, 500),
+    ]
+    for c_lo, c_hi, i_lo, i_hi in breakpoints:
+        if c_lo <= concentration <= c_hi:
+            return round(((i_hi - i_lo) / (c_hi - c_lo)) * (concentration - c_lo) + i_lo)
+    return None  # Out of range
+
 @api_view(['GET'])
 def get_aqi(request):
-    API_KEY = "4b6340b064804275bff164431252305"
-    geo= get_geolocation()
+    API_KEY = os.getenv('WEATHER_API_KEY')
+    geo = get_geolocation()
     if not geo or not geo.get("latitude") or not geo.get("longitude"):
         return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    
     LATITUDE = geo["latitude"]
     LONGITUDE = geo["longitude"]
 
-    # Get current AQI
+    
     url = (
         f"http://api.weatherapi.com/v1/current.json?"
         f"key={API_KEY}&q={LATITUDE},{LONGITUDE}&aqi=yes"
     )
+
     try:
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
-        current = data.get('current', {})
-        aqi = current.get('air_quality', {})
-        current_aqi = {
-            "CO": aqi.get('co'),
-            "NO2": aqi.get('no2'),
-            "O3": aqi.get('o3'),
-            "SO2": aqi.get('so2'),
-            "PM2_5": aqi.get('pm2_5'),
-            "PM10": aqi.get('pm10'),
-            "US_EPA_Index": aqi.get('us-epa-index'),
-            "GB_DEFRA_Index": aqi.get('gb-defra-index'),
-        }
+        air_quality = data.get("current", {}).get("air_quality", {})
+        pm25 = air_quality.get("pm2_5")
+
+        if pm25 is None:
+            return Response({"error": "PM2.5 data not available"}, status=500)
+
+        real_aqi = compute_pm25_aqi(pm25)
+
+        return Response({
+            "AQI_Value": real_aqi,
+        })
     except requests.RequestException as e:
         return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
-    
-    return Response({
-        "current_aqi": current_aqi,
-     })
     
 
 @api_view(['GET'])
 def get_weather_history(request):
-    API_KEY = "4b6340b064804275bff164431252305"
+    API_KEY = os.getenv('WEATHER_API_KEY')
     geo= get_geolocation()
     if not geo or not geo.get("latitude") or not geo.get("longitude"):
         return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
@@ -163,9 +162,12 @@ def get_weather_history(request):
 @api_view(['GET'])
 def get_weather_forecast(request):
     # 5-day/3-hour forecast (returns data every 3 hours for 5 days)
-    API_KEY = "80397f82704fe5be4137c087667e2e31"
-    LATITUDE = "27.7017"  # Example: Kathmandu
-    LONGITUDE = "85.320"  # Example: Kathmandu
+    API_KEY = os.getenv('OPENWEATHER_API_KEY')
+    geo= get_geolocation()
+    if not geo or not geo.get("latitude") or not geo.get("longitude"):
+        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
+    LATITUDE = geo["latitude"]
+    LONGITUDE = geo["longitude"]
 
     forecast_url = (
         f"http://api.openweathermap.org/data/2.5/forecast?"
@@ -206,7 +208,7 @@ def get_weather_forecast(request):
 
 @api_view(['GET'])
 def get_alert(request):
-    API_KEY = "4b6340b064804275bff164431252305"
+    API_KEY = os.getenv('WEATHER_API_KEY')
     geo= get_geolocation()
     if not geo or not geo.get("latitude") or not geo.get("longitude"):
         return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
@@ -237,9 +239,6 @@ def predict_temp(request):
 #added 5 din ko kura
 
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-import requests
 
 @api_view(['POST'])
 def get_current_weather_default(request):
@@ -248,7 +247,7 @@ def get_current_weather_default(request):
     if not city:
         return Response({'error': 'City field is required in the request body.'}, status=400)
     
-    api_key = '80397f82704fe5be4137c087667e2e31'
+    api_key = os.getenv('OPENWEATHER_API_KEY')
     url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric'
     
     try:
