@@ -31,7 +31,7 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True, blank=False, null=False)
     username = models.CharField(max_length=150, unique=True, blank=True, null=True)
     objects = CustomUserManager()   
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ["email"]
     
   

@@ -29,14 +29,14 @@ class LoginViewset(viewsets.ViewSet):
     def create(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            username = serializer.validated_data['username']
             password = serializer.validated_data['password']
-            user = authenticate(request, email=email, password=password)
-            if user :
+            user = authenticate(request, username=username, password=password)
+            if user:
                 _, token = AuthToken.objects.create(user)
                 return Response({
                     "message": "Login successful",
-                    "user": self.serializer_class(user).data,  # <-- Correct
+                    "user": RegisterSerializer(user).data,
                     "token": token
                 }, status=status.HTTP_200_OK)
             else:

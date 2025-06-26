@@ -29,7 +29,7 @@ ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'Login_Auth.CustomUser'
 
-AUTHENTICATION_BACKENDS = ["Login_Auth.auth_backend.EmailAuthBackend"]
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 # Application definition
 
