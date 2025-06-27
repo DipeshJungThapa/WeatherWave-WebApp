@@ -16,19 +16,37 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.contrib.auth.decorators import login_required
+from django.urls import path,include
 from django.http import JsonResponse
-
 from forecast.views import * 
+from rest_framework.routers import DefaultRouter
+from knox import views as knox_views
+from Login_Auth.views import RegisterViewset, LoginViewset,UserViewset
+
+router= DefaultRouter()
+router.register("register", RegisterViewset, basename="register")
+router.register("login", LoginViewset, basename="login")
+router.register("users", UserViewset, basename="users")
 
 def home(request):
     return JsonResponse({"message": "Welcome to WeatherWave API!"})
 
-urlpatterns = [
+urlpatterns = router.urls + [
     path("admin/", admin.site.urls),
+    path("login/",knox_views.LoginView.as_view(), name="knox_logoutall"),
+    path("logout/", knox_views.LogoutView.as_view(), name="knox_logout"),
     path('weather/', get_current_weather),
+    path('default_weather/',get_current_weather_default),
     path('aqi/', get_aqi),
-    path('predict/', predict_temp),
-    path('', home),  # This handles the root URL
+    path('predict_geo/', predict_geo),
+    path('predict_city/', predict_city),
+    path('history/', get_weather_history),
+    path('forecast/', get_weather_forecast),
+    path("alert/",get_alert),
+    #path('favourite/', login_required(include('favourite.urls'))),
+    path('favourite/', include('favourite.urls')),
+    #path("api/auth/", include('knox.urls')), 
+    path('', home),
 ]
 

@@ -27,6 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'Login_Auth.CustomUser'
+
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 # Application definition
 
@@ -38,8 +41,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
     "forecast",
+    "Login_Auth",
+    "knox",
+    "corsheaders",
+    "favourite",  
 ]
+
+LOGIN_URL = '/login/'
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -49,8 +61,15 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'knox.auth.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
 ROOT_URLCONF = "weatherwave_project.urls"
 
 TEMPLATES = [
@@ -74,11 +93,12 @@ WSGI_APPLICATION = "weatherwave_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    'default': dj_database_url.parse(
+        "postgresql://postgres:weatherwave@db.jkjmpavogwqhlwdoqopm.supabase.co:5432/postgres"
+    )
 }
 
 
@@ -122,3 +142,8 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React default
+    # add others as needed
+]
