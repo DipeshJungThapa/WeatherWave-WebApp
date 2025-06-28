@@ -30,25 +30,32 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
+# backend/weatherwave_project/settings.py
+
 INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "rest_framework",
-    "forecast",
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'knox',
+    'corsheaders', # Add this line
+    'Login_Auth', # Your auth app
+    'forecast',   # Your weather/forecast app
 ]
 
+# CORS settings
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Add this line
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = "weatherwave_project.urls"
@@ -122,3 +129,14 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# backend/weatherwave_project/settings.py
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000", # Assuming your frontend runs on this port
+    "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
+]
+# If you need to allow all origins for development (less secure, use only for testing)
+# CORS_ALLOW_ALL_ORIGINS = True
