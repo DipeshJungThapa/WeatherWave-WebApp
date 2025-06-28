@@ -27,35 +27,37 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'Login_Auth.CustomUser'
+
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 # Application definition
 
 # backend/weatherwave_project/settings.py
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'knox',
-    'corsheaders', # Add this line
-    'Login_Auth', # Your auth app
-    'forecast',   # Your weather/forecast app
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "forecast",
 ]
+
+LOGIN_URL = '/login/'
+
 
 # CORS settings
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # Add this line
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "weatherwave_project.urls"
@@ -81,11 +83,12 @@ WSGI_APPLICATION = "weatherwave_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    'default': dj_database_url.parse(
+        "postgresql://postgres:weatherwave@db.jkjmpavogwqhlwdoqopm.supabase.co:5432/postgres"
+    )
 }
 
 
@@ -130,13 +133,19 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React default
+    "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
+    # add others as needed
+]
+
 
 # backend/weatherwave_project/settings.py
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", # Assuming your frontend runs on this port
-    "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000", # Assuming your frontend runs on this port
+#     "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
+# ]
 # If you need to allow all origins for development (less secure, use only for testing)
 # CORS_ALLOW_ALL_ORIGINS = True
