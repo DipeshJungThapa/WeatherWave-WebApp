@@ -1,31 +1,40 @@
 // src/hooks/useFavourites.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext'; // To get the auth token
+import { useAuth } from '../context/AuthContext';
+
+const axiosInstance = axios.create({
+  baseURL: 'http://127.0.0.1:8000/',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const useFavourites = () => {
-  const { token } = useAuth(); // Get the authentication token
-  const [favorites, setFavorites] = useState([]); // State to store the list of favorite districts
+  const { token } = useAuth();
+  const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Function to fetch favorites from the backend
+  const getAuthHeaders = () => ({
+    Authorization: `Token ${token}`,
+  });
+
   const fetchFavorites = async () => {
     if (!token) {
-      setFavorites([]); // Clear favorites if no token
+      setFavorites([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setError(null);
     try {
-      const headers = { Authorization: `Token ${token}` };
-      // This will call your future backend endpoint for fetching favorites
-      const res = await axios.get('/favourite/list/', { headers }); // Assuming /favourite/list/ endpoint
-      setFavorites(res.data.favorites || []); // Assuming response has a 'favorites' key
+      const res = await axiosInstance.get('/favourite/list/', {
+        headers: getAuthHeaders(),
+      });
+      setFavorites(res.data.favourites || []);
     } catch (err) {
-      console.error("Error fetching favorites:", err);
+      console.error('Error fetching favorites:', err);
       setError('Failed to load favorites.');
       setFavorites([]);
     } finally {
@@ -33,50 +42,66 @@ const useFavourites = () => {
     }
   };
 
-  // Function to add a district to favorites
   const addFavorite = async (districtName) => {
     if (!token) {
-      setError('Login required to add favorites.');
+      alert('Please log in to add favorites.');
       return;
     }
+
     try {
-      const headers = { Authorization: `Token ${token}` };
-      // This will call your future backend endpoint for adding a favorite
-      await axios.post('/favourite/add/', { district: districtName }, { headers }); // Assuming /favourite/add/ endpoint
-      // After successful addition, refetch the list to update UI
-      await fetchFavorites();
+      const res = await axiosInstance.post(
+        '/favourite/add/',
+        { district: districtName }, // <-- FIXED HERE
+        { headers: getAuthHeaders() }
+      );
+      if (res.status === 201 || res.status === 200) {
+        alert(`'${districtName}' added to favorites!`);
+        await fetchFavorites();
+      } else {
+        alert('Something went wrong while adding favorite.');
+      }
     } catch (err) {
-      console.error("Error adding favorite:", err);
-      setError('Failed to add favorite.');
+      console.error('Add favorite error:', err);
+      alert(err.response?.data?.detail || 'Failed to add favorite.');
     }
   };
 
-  // Function to remove a district from favorites
   const removeFavorite = async (districtName) => {
     if (!token) {
-      setError('Login required to remove favorites.');
+      alert('Please log in to remove favorites.');
       return;
     }
+
     try {
-      const headers = { Authorization: `Token ${token}` };
-      // This will call your future backend endpoint for removing a favorite
-      // Assuming DELETE or POST with identifier for removal
-      await axios.post('/favourite/remove/', { district: districtName }, { headers }); // Assuming /favourite/remove/ endpoint
-      // After successful removal, refetch the list to update UI
-      await fetchFavorites();
+      const res = await axiosInstance.post(
+        '/favourite/remove/',
+        { district: districtName }, // <-- FIXED HERE
+        { headers: getAuthHeaders() }
+      );
+      if (res.status === 200) {
+        alert(`'${districtName}' removed from favorites!`);
+        await fetchFavorites();
+      } else {
+        alert('Something went wrong while removing favorite.');
+      }
     } catch (err) {
-      console.error("Error removing favorite:", err);
-      setError('Failed to remove favorite.');
+      console.error('Remove favorite error:', err);
+      alert(err.response?.data?.detail || 'Failed to remove favorite.');
     }
   };
 
-  // Fetch favorites when the component mounts or token changes
   useEffect(() => {
     fetchFavorites();
-  }, [token]); // Re-fetch if token changes (e.g., user logs in/out)
+  }, [token]);
 
-  // Return favorite data and functions
-  return { favorites, loading, error, addFavorite, removeFavorite, fetchFavorites };
+  return {
+    favorites,
+    loading,
+    error,
+    addFavorite,
+    removeFavorite,
+    fetchFavorites,
+  };
 };
 
 export default useFavourites;

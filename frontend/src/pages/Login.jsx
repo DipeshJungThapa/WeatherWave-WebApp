@@ -6,24 +6,25 @@ import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState(''); // Change email to username state
   const [password, setPassword] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      // This is the original code that sends the actual login request to your backend
-      const res = await axios.post('http://127.0.0.1:8000/login/', { email, password });
+      // Change the field name from 'email' to 'username' in the payload
+      const res = await axios.post('http://127.0.0.1:8000/login/', { username, password });
       
-      // Assuming the backend returns the token in res.data.token
-      login(res.data.token); // Store the token globally using AuthContext
+      login(res.data.token); 
       
-      navigate('/'); // Redirect to the dashboard on successful login
-      alert('Login successful!'); // Simple success feedback
+      navigate('/'); 
+      alert('Login successful!');
     } catch (err) {
       console.error("Login failed:", err.response ? err.response.data : err.message);
-      alert("Login failed: " + (err.response?.data?.detail || err.message)); // Provide user feedback
+      // It's good to show specific error messages from the backend
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || err.message;
+      alert("Login failed: " + errorMessage);
     }
   };
 
@@ -32,12 +33,13 @@ export default function Login() {
       <h2>Login</h2>
       <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
         <div className="form-group">
-          <label htmlFor="email">Email:</label>
+          {/* Change label and state/onChange to username */}
+          <label htmlFor="username">Username:</label>
           <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text" // Changed type to text, as username might not be an email format
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
