@@ -72,3 +72,7 @@ except Exception as e:
     print(f"An unexpected error occurred during prediction: {e}")
 
 print("--- Finished 07_predict.py ---")
+print("--- Finished 07_predict.py ---")
+
+
+##final prediction after appending the live data is remaining
