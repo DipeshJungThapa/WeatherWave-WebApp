@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import dj_database_url # Import for database configuration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,17 +43,25 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third-party apps added for functionality (knox, rest_framework for API)
     "rest_framework",
+    "knox",            # Added for authentication (from your merged branch)
+    "corsheaders",     # Added for Cross-Origin Resource Sharing (CORS)
+
+    # Your project apps
+    "Login_Auth",      # Added (from your merged branch)
     "forecast",
+    "favourite",       # Added (from your merged branch)
 ]
 
 LOGIN_URL = '/login/'
 
 
-# CORS settings
+# MIDDLEWARE Configuration (CORS Middleware must be high up)
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware", # <-- ADDED THIS LINE FOR CORS
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -83,12 +92,16 @@ WSGI_APPLICATION = "weatherwave_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-import dj_database_url
-
 DATABASES = {
-    'default': dj_database_url.parse(
-        "postgresql://postgres:weatherwave@db.jkjmpavogwqhlwdoqopm.supabase.co:5432/postgres"
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres', # Your Supabase database name (usually 'postgres')
+        'USER': 'postgres', # Your Supabase database user (usually 'postgres')
+        'PASSWORD': '#WeatherWave2025', # Your ACTUAL Supabase database password
+        'HOST': 'db.qgrkryybipeunbcvxukk.supabase.co', # Your Supabase project host
+        'PORT': '5432', # Supabase PostgreSQL port
+        'CONN_MAX_AGE': 600, # Optional: good practice for persistent connections
+    }
 }
 
 
@@ -133,19 +146,14 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
+# CORS settings (Frontend origins allowed to connect)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React default
-    "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
-    # add others as needed
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",   # <-- ADDED THIS LINE
+    "http://127.0.0.1:5173",   # <-- ADDED THIS LINE (just in case it uses 127.0.0.1 sometimes)
 ]
 
-
-# backend/weatherwave_project/settings.py
-
-# CORS settings
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000", # Assuming your frontend runs on this port
-#     "http://127.0.0.1:3000", # Sometimes 127.0.0.1 is used instead of localhost
-# ]
-# If you need to allow all origins for development (less secure, use only for testing)
-# CORS_ALLOW_ALL_ORIGINS = True
+# You can uncomment the line below for super quick testing, but it's less secure
+# CORS_ALLOW_ALL_ORIGINS = True # Only for development, not production!
