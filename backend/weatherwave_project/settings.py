@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import dj_database_url # Import for database configuration
+from datetime import timedelta # NEW: Required for Knox token TTL if you use it
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,14 +46,37 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party apps added for functionality (knox, rest_framework for API)
     "rest_framework",
-    "knox",            # Added for authentication (from your merged branch)
-    "corsheaders",     # Added for Cross-Origin Resource Sharing (CORS)
+    "knox",          # Added for authentication
+    "corsheaders",   # Added for Cross-Origin Resource Sharing (CORS)
 
     # Your project apps
-    "Login_Auth",      # Added (from your merged branch)
+    "Login_Auth",    # Added
     "forecast",
-    "favourite",       # Added (from your merged branch)
+    "favourite",     # Added
 ]
+
+# NEW: Django REST Framework Settings - THIS IS THE CRITICAL ADDITION
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'knox.auth.TokenAuthentication', # This tells DRF to use Knox for authentication
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated', # Good default for APIs requiring auth
+    ),
+    'DEFAULT_PARSER_CLASSES': (
+        'rest_framework.parsers.JSONParser', # Ensure JSON is parsed correctly
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser'
+    ),
+}
+
+# Optional: Knox settings (default token expiry is 10 hours)
+# You can adjust this if you want tokens to expire sooner or later
+REST_KNOX = {
+    'TOKEN_TTL': timedelta(hours=24), # Example: tokens expire in 24 hours
+    'AUTO_REFRESH': True, # Keep token alive if used frequently
+}
+
 
 LOGIN_URL = '/login/'
 
@@ -151,8 +175,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:5173",   # <-- ADDED THIS LINE
-    "http://127.0.0.1:5173",   # <-- ADDED THIS LINE (just in case it uses 127.0.0.1 sometimes)
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 # You can uncomment the line below for super quick testing, but it's less secure

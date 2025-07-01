@@ -1,5 +1,7 @@
+# backend/forecast/views.py
 from django.shortcuts import render
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import IsAuthenticated # <--- COMMENTED OUT
 from rest_framework.response import Response
 from rest_framework import status
 import requests
@@ -43,31 +45,25 @@ def get_weather(lat, lon, api_key):
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
-        
-        # Extracting relevant data for the 21 features
-        # Some fields might not always be present (e.g., 'rain', 'snow', 'gust')
-        
-        # Precip (rain/snow volume for the last 1 hour, in mm)
+
         precip = 0.0
         if 'rain' in data and '1h' in data['rain']:
             precip += data['rain']['1h']
         if 'snow' in data and '1h' in data['snow']:
             precip += data['snow']['1h']
 
-        # Wind Gust (proxy for MaxWindSpeed_10m)
-        wind_gust = data.get('wind', {}).get('gust', data.get('wind', {}).get('speed', 0.0)) # use speed if gust not available
+        wind_gust = data.get('wind', {}).get('gust', data.get('wind', {}).get('speed', 0.0))
 
         return {
-            "temp": data['main']['temp'],
+            "temperature": data['main']['temp'], # Changed to 'temperature' for consistency
             "description": data['weather'][0]['description'],
-            "humidity": data['main']['humidity'], # This is Humidity_2m and RH_2m
-            "wind_speed": data['wind']['speed'], # This is WindSpeed_10m
-            "pressure": data['main']['pressure'], # This is Pressure
-            "temp_max": data['main'].get('temp_max'), # MaxTemp_2m (proxy)
-            "temp_min": data['main'].get('temp_min'), # MinTemp_2m (proxy)
-            "precip": precip, # Precip
-            "wind_gust": wind_gust, # MaxWindSpeed_10m (proxy)
-            # Other features like WetBulbTemp_2m, EarthSkinTemp, WindSpeed_50m are not directly from here
+            "humidity": data['main']['humidity'],
+            "wind_speed": data['wind']['speed'],
+            "pressure": data['main']['pressure'],
+            "temp_max": data['main'].get('temp_max'),
+            "temp_min": data['main'].get('temp_min'),
+            "precipitation": precip, # Changed to 'precipitation' for consistency
+            "wind_gust": wind_gust,
         }
     except requests.RequestException:
         return None
@@ -87,7 +83,6 @@ def compute_pm25_aqi(concentration):
             return round(((i_hi - i_lo) / (c_hi - c_lo)) * (concentration - c_lo) + i_lo)
     return None
 
-# NEW HELPER: For predict_city to get lat/lon from city name
 def get_lat_lon_from_city(city_name, api_key):
     url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={api_key}"
     try:
@@ -100,35 +95,63 @@ def get_lat_lon_from_city(city_name, api_key):
         return None, None
     return None, None
 
-# ------------------ Views (Your existing ones, then the updated predict ones) ------------------
+# ------------------ Views ------------------
 
 @api_view(['GET'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_current_weather(request):
-    geo = get_geolocation()
-    API_KEY = os.getenv('OPENWEATHER_API_KEY')
-    if geo and geo["latitude"] and geo["longitude"]:
-        weather = get_weather(geo["latitude"], geo["longitude"], API_KEY)
-    else:
-        weather = None
+    # This view now takes lat/lon from query params
+    latitude = request.query_params.get('lat')
+    longitude = request.query_params.get('lon')
 
+    if not latitude or not longitude:
+        geo = get_geolocation() # Fallback to geolocation if params not provided
+        latitude = geo.get("latitude") if geo else None
+        longitude = geo.get("longitude") if geo else None
+        city = geo.get("city") if geo else None
+    else:
+        # If lat/lon are provided, try to get city name for response
+        # This would require a reverse geocoding API call, or just return lat/lon
+        # For simplicity, we'll just use a placeholder or assume city is not needed for this endpoint
+        city = "Unknown City (Geo)"
+
+
+    API_KEY = os.getenv('OPENWEATHER_API_KEY')
+    if latitude and longitude:
+        weather_data = get_weather(latitude, longitude, API_KEY)
+    else:
+        return Response({"error": "Geolocation or lat/lon parameters missing."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not weather_data:
+        return Response({"error": "Failed to fetch weather data for current location."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Return a consistent structure
     return Response({
-        "city": geo.get("city") if geo else None,
-        "temp": weather["temp"] if weather else None,
-        "humidity": weather["humidity"] if weather else None,
-        "description": weather["description"] if weather else None,
-        "wind_speed": weather["wind_speed"] if weather else None,
+        "city": city, # Include city if determined
+        "temperature": weather_data["temperature"],
+        "humidity": weather_data["humidity"],
+        "description": weather_data["description"],
+        "wind_speed": weather_data["wind_speed"],
+        "precipitation": weather_data["precipitation"], # Use consistent key
     })
 
 @api_view(['GET'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_aqi(request):
-    API_KEY = os.getenv('WEATHER_API_KEY') # Assuming this is your WeatherAPI.com key
-    geo = get_geolocation()
-    if not geo or not geo.get("latitude") or not geo.get("longitude"):
-        return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    LATITUDE = geo["latitude"]
-    LONGITUDE = geo["longitude"]
-    url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={LATITUDE},{LONGITUDE}&aqi=yes"
+    API_KEY = os.getenv('WEATHER_API_KEY')
+    # Use lat/lon from query params if available, otherwise fallback to geolocation
+    latitude = request.query_params.get('lat')
+    longitude = request.query_params.get('lon')
+
+    if not latitude or not longitude:
+        geo = get_geolocation()
+        latitude = geo.get("latitude") if geo else None
+        longitude = geo.get("longitude") if geo else None
+
+    if not latitude or not longitude:
+        return Response({"error": "Could not determine geolocation for AQI"}, status=status.HTTP_400_BAD_REQUEST)
+
+    url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={latitude},{longitude}&aqi=yes"
 
     try:
         response = requests.get(url)
@@ -136,19 +159,20 @@ def get_aqi(request):
         data = response.json()
         pm25 = data.get("current", {}).get("air_quality", {}).get("pm2_5")
         if pm25 is None:
-            return Response({"error": "PM2.5 data not available"}, status=500)
+            return Response({"error": "PM2.5 data not available"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         real_aqi = compute_pm25_aqi(pm25)
-        return Response({"AQI_Value": real_aqi})
+        return Response({"AQI_Value": real_aqi}) # Ensure this matches frontend expectation
     except requests.RequestException as e:
-        return Response({"error": "Error fetching AQI data", "details": str(e)}, status=500)
+        return Response({"error": "Error fetching AQI data", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_weather_history(request):
     API_KEY = os.getenv('WEATHER_API_KEY')
     geo = get_geolocation()
     if not geo or not geo.get("latitude") or not geo.get("longitude"):
         return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     LATITUDE = geo["latitude"]
     LONGITUDE = geo["longitude"]
     history = []
@@ -175,6 +199,7 @@ def get_weather_history(request):
     return Response({"history": history})
 
 @api_view(['GET'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_weather_forecast(request):
     API_KEY = os.getenv('OPENWEATHER_API_KEY')
     geo = get_geolocation()
@@ -217,12 +242,13 @@ def get_weather_forecast(request):
     return Response({"forecast": forecast_data})
 
 @api_view(['GET'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_alert(request):
     API_KEY = os.getenv('WEATHER_API_KEY')
     geo = get_geolocation()
     if not geo or not geo.get("latitude") or not geo.get("longitude"):
         return Response({"error": "Could not determine geolocation"}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     LATITUDE = geo["latitude"]
     LONGITUDE = geo["longitude"]
     url = f"http://api.weatherapi.com/v1/alerts.json?key={API_KEY}&q={LATITUDE},{LONGITUDE}"
@@ -241,10 +267,11 @@ def get_alert(request):
 # --- UPDATED PREDICT VIEWS ---
 
 @api_view(['POST'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def predict_geo(request):
     geo = get_geolocation()
     if not geo or not geo.get("city") or not geo.get("latitude") or not geo.get("longitude"):
-        return Response({"error": "City or geolocation not found"}, status=400)
+        return Response({"error": "City or geolocation not found"}, status=status.HTTP_400_BAD_REQUEST)
 
     city = geo["city"]
     latitude = geo["latitude"]
@@ -253,7 +280,7 @@ def predict_geo(request):
     OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
     current_weather_data = get_weather(latitude, longitude, OPENWEATHER_API_KEY)
     if not current_weather_data:
-        return Response({"error": "Failed to fetch current weather data for prediction"}, status=500)
+        return Response({"error": "Failed to fetch current weather data for prediction"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     model_path = settings.BASE_DIR.parent / 'ml' / 'models' / 'weather_model.pkl'
     encoder_path = settings.BASE_DIR.parent / 'ml' / 'models' / 'label_encoder.pkl'
@@ -262,47 +289,33 @@ def predict_geo(request):
         model = joblib.load(model_path)
         label_encoder = joblib.load(encoder_path)
 
-        # Encode the city/district
         try:
-            encoded_district = label_encoder.transform([city])[0] # Assuming 'city' maps to 'District' in your encoder
+            encoded_district = label_encoder.transform([city])[0]
         except ValueError:
             return Response(
                 {"error": f"City/District '{city}' not recognized by the model's encoder. Please select a different city or try another method."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Extract features from current_weather_data and define placeholders for others
-        # Fill these based on the `MODEL_FEATURES` list and available data.
-        # Use 0.0 or a reasonable default for features not directly available.
-        # ORDER IS CRUCIAL!
-
-        # Define placeholder for MinWindSpeed_10m as it's not readily available
-        min_wind_speed_10m = 0.0 # Placeholder, ideally from training data mean/min
-
-        # Define placeholders for 50m wind speeds
-        wind_speed_50m = 0.0 # Placeholder
-        max_wind_speed_50m = 0.0 # Placeholder
-        min_wind_speed_50m_50m = 0.0 # Placeholder
-        wind_speed_range_50m = 0.0 # Placeholder
-
-        # Define placeholders for specialized temps
-        wet_bulb_temp_2m = current_weather_data.get('temp') # As a proxy, or 0.0
-        earth_skin_temp = current_weather_data.get('temp') # As a proxy, or 0.0
-
-        # Calculate ranges
+        min_wind_speed_10m = 0.0
+        wind_speed_50m = 0.0
+        max_wind_speed_50m = 0.0
+        min_wind_speed_50m_50m = 0.0
+        wind_speed_range_50m = 0.0
+        wet_bulb_temp_2m = current_weather_data.get('temperature') # Use 'temperature'
+        earth_skin_temp = current_weather_data.get('temperature') # Use 'temperature'
         temp_range_2m = current_weather_data.get('temp_max', 0.0) - current_weather_data.get('temp_min', 0.0)
-        # Assuming MaxWindSpeed_10m is current_weather_data.get('wind_gust')
         wind_speed_range_10m = current_weather_data.get('wind_gust', 0.0) - min_wind_speed_10m
 
 
         input_data_list = [
             float(latitude), # Latitude
             float(longitude), # Longitude
-            current_weather_data.get('precip', 0.0), # Precip
-            current_weather_data.get('pressure', 1013.25), # Pressure (default to std atmospheric pressure)
+            current_weather_data.get('precipitation', 0.0), # Use 'precipitation'
+            current_weather_data.get('pressure', 1013.25), # Pressure
             current_weather_data.get('humidity', 0.0), # Humidity_2m
-            current_weather_data.get('humidity', 0.0), # RH_2m (assuming same as Humidity_2m)
-            current_weather_data.get('temp', 0.0), # Temp_2m
+            current_weather_data.get('humidity', 0.0), # RH_2m
+            current_weather_data.get('temperature', 0.0), # Use 'temperature'
             wet_bulb_temp_2m, # WetBulbTemp_2m (placeholder/proxy)
             current_weather_data.get('temp_max', 0.0), # MaxTemp_2m
             current_weather_data.get('temp_min', 0.0), # MinTemp_2m
@@ -319,40 +332,36 @@ def predict_geo(request):
             encoded_district # District_encoded
         ]
 
-        # Verify the number of features before passing to the model
         if len(input_data_list) != 21:
             return Response({"error": f"Feature count mismatch: Expected 21, got {len(input_data_list)}. Please recheck `MODEL_FEATURES` and `input_data_list` construction."},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # The model expects a 2D array: [[feature1, feature2, ..., feature21]]
         prediction = model.predict([input_data_list])
 
         print(f"Prediction result for {city}: {prediction[0]}")
-        # Model predicts only one value, so return prediction[0]
-        return Response({"predicted_temp": prediction[0]}, status=200)
+        return Response({"predicted_temp": prediction[0]}, status=status.HTTP_200_OK) # Use status constant
 
     except Exception as e:
         print(f"Prediction error in predict_geo: {e}")
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) # Use status constant
 
 
 @api_view(['POST'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def predict_city(request):
     city = request.data.get('city')
     if not city:
-        return Response({"error": "City name is required"}, status=400)
+        return Response({"error": "City name is required"}, status=status.HTTP_400_BAD_REQUEST) # Use status constant
 
     OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
-    
-    # Step 1: Geocode city name to lat/lon
+
     latitude, longitude = get_lat_lon_from_city(city, OPENWEATHER_API_KEY)
     if not latitude or not longitude:
         return Response({"error": f"Could not determine geolocation for city: '{city}'"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Step 2: Get current weather data for the geocoded lat/lon
     current_weather_data = get_weather(latitude, longitude, OPENWEATHER_API_KEY)
     if not current_weather_data:
-        return Response({"error": "Failed to fetch current weather data for prediction for the specified city."}, status=500)
+        return Response({"error": "Failed to fetch current weather data for prediction for the specified city."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     model_path = settings.BASE_DIR.parent / 'ml' / 'models' / 'weather_model.pkl'
     encoder_path = settings.BASE_DIR.parent / 'ml' / 'models' / 'label_encoder.pkl'
@@ -360,8 +369,7 @@ def predict_city(request):
     try:
         model = joblib.load(model_path)
         label_encoder = joblib.load(encoder_path)
-        
-        # Encode the city/district
+
         try:
             encoded_district = label_encoder.transform([city])[0]
         except ValueError:
@@ -369,26 +377,25 @@ def predict_city(request):
                 {"error": f"City/District '{city}' not recognized by the model's encoder. Please ensure it's a valid city for prediction."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Extract features and define placeholders - same logic as predict_geo
-        min_wind_speed_10m = 0.0 # Placeholder
-        wind_speed_50m = 0.0 # Placeholder
-        max_wind_speed_50m = 0.0 # Placeholder
-        min_wind_speed_50m_50m = 0.0 # Placeholder
-        wind_speed_range_50m = 0.0 # Placeholder
-        wet_bulb_temp_2m = current_weather_data.get('temp') # As a proxy, or 0.0
-        earth_skin_temp = current_weather_data.get('temp') # As a proxy, or 0.0
+
+        min_wind_speed_10m = 0.0
+        wind_speed_50m = 0.0
+        max_wind_speed_50m = 0.0
+        min_wind_speed_50m_50m = 0.0
+        wind_speed_range_50m = 0.0
+        wet_bulb_temp_2m = current_weather_data.get('temperature') # Use 'temperature'
+        earth_skin_temp = current_weather_data.get('temperature') # Use 'temperature'
         temp_range_2m = current_weather_data.get('temp_max', 0.0) - current_weather_data.get('temp_min', 0.0)
         wind_speed_range_10m = current_weather_data.get('wind_gust', 0.0) - min_wind_speed_10m
 
         input_data_list = [
             float(latitude), # Latitude
             float(longitude), # Longitude
-            current_weather_data.get('precip', 0.0), # Precip
+            current_weather_data.get('precipitation', 0.0), # Use 'precipitation'
             current_weather_data.get('pressure', 1013.25), # Pressure
             current_weather_data.get('humidity', 0.0), # Humidity_2m
             current_weather_data.get('humidity', 0.0), # RH_2m
-            current_weather_data.get('temp', 0.0), # Temp_2m
+            current_weather_data.get('temperature', 0.0), # Use 'temperature'
             wet_bulb_temp_2m, # WetBulbTemp_2m
             current_weather_data.get('temp_max', 0.0), # MaxTemp_2m
             current_weather_data.get('temp_min', 0.0), # MinTemp_2m
@@ -412,19 +419,19 @@ def predict_city(request):
         prediction = model.predict([input_data_list])
 
         print(f"Prediction result for {city}: {prediction[0]}")
-        return Response({"predicted_temp": prediction[0]}, status=200)
+        return Response({"predicted_temp": prediction[0]}, status=status.HTTP_200_OK) # Use status constant
 
     except Exception as e:
         print(f"Prediction error in predict_city: {e}")
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Your existing get_current_weather_default function (ensure it's below predict_city)
 @api_view(['POST'])
+# @permission_classes([IsAuthenticated]) # <--- COMMENTED OUT
 def get_current_weather_default(request):
     city = request.data.get('city')
     if not city:
-        return Response({'error': 'City field is required in the request body.'}, status=400)
+        return Response({'error': 'City field is required in the request body.'}, status=status.HTTP_400_BAD_REQUEST)
 
     api_key = os.getenv('OPENWEATHER_API_KEY')
     url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric'
@@ -435,13 +442,15 @@ def get_current_weather_default(request):
         if response.status_code != 200:
             return Response({'error': data.get('message', 'Failed to fetch weather data.')}, status=response.status_code)
 
+        # Return a consistent structure for get_current_weather_default
         weather = {
             'city': data['name'],
-            'temperature': data['main']['temp'],
+            'temperature': data['main']['temp'], # Use consistent key
             'description': data['weather'][0]['description'],
             'humidity': data['main']['humidity'],
             'wind_speed': data['wind']['speed'],
+            'precipitation': data['rain']['1h'] if 'rain' in data and '1h' in data['rain'] else 0.0, # Add precipitation
         }
         return Response(weather)
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
