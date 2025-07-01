@@ -1,42 +1,81 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Base styles */
+body {
+  background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* App container */
+.app-container {
+  max-width: 400px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  padding: 2rem 1.5rem;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Header */
+header h1 {
+  margin: 0 0 1.5rem 0;
+  font-size: 2.2rem;
+  color: #3178c6;
+}
+
+/* Search bar */
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.search-bar input {
+  flex: 1;
+  padding: 0.7rem;
+  border: 1px solid #bcdff1;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+.search-bar button {
+  padding: 0.7rem 1.2rem;
+  background: #3178c6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.search-bar button:hover {
+  background: #255a8a;
+}
+
+/* Weather card */
+.weather-card {
+  background: #f6fbff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(49,120,198,0.07);
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+.weather-card h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #255a8a;
+}
+.weather-card p {
+  margin: 0.3rem 0;
+  font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .app-container {
+    max-width: 98vw;
+    padding: 1rem 0.5rem;
   }
-  to {
-    transform: rotate(360deg);
+  .search-bar {
+    flex-direction: column;
+    gap: 0.7rem;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
