@@ -1,8 +1,7 @@
-// src/context/AuthContext.jsx
-import { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 // Create the AuthContext
-const AuthContext = createContext();
+const AuthContext = createContext(null); // Initialize with null
 
 // AuthProvider component to wrap your app and provide authentication state
 export function AuthProvider({ children }) {
@@ -10,7 +9,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
 
   // Function to handle user login: set token in state and localStorage
-  const login = (newToken) => { // Renamed param to newToken to avoid conflict with state variable
+  const login = (newToken) => {
     setToken(newToken);
     localStorage.setItem('token', newToken);
   };

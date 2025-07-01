@@ -1,107 +1,88 @@
 // src/hooks/useFavourites.js
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
+import axiosInstance from '../api/axiosInstance'; // Assuming you have an axiosInstance
 import { useAuth } from '../context/AuthContext';
 
-const axiosInstance = axios.create({
-  baseURL: 'http://127.0.0.1:8000/',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export const useFavourites = () => {
+    const [favourites, setFavourites] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const { token } = useAuth(); // Get token from AuthContext
 
-const useFavourites = () => {
-  const { token } = useAuth();
-  const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+    const getAuthHeaders = useCallback(() => {
+        return token ? { Authorization: `Token ${token}` } : {};
+    }, [token]);
 
-  const getAuthHeaders = () => ({
-    Authorization: `Token ${token}`,
-  });
+    const fetchFavourites = useCallback(async () => {
+        if (!token) {
+            setFavourites([]);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await axiosInstance.get('/favourite/list/', {
+                headers: getAuthHeaders()
+            });
+            setFavourites(response.data.favourites || []);
+        } catch (err) {
+            console.error("Error fetching favourites:", err.response?.data || err.message);
+            setError(err);
+            setFavourites([]); // Clear favorites on error
+        } finally {
+            setLoading(false);
+        }
+    }, [token, getAuthHeaders]); // Depend on token and getAuthHeaders
 
-  const fetchFavorites = async () => {
-    if (!token) {
-      setFavorites([]);
-      setLoading(false);
-      return;
-    }
+    useEffect(() => {
+        fetchFavourites();
+    }, [fetchFavourites]);
 
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get('/favourite/list/', {
-        headers: getAuthHeaders(),
-      });
-      setFavorites(res.data.favourites || []);
-    } catch (err) {
-      console.error('Error fetching favorites:', err);
-      setError('Failed to load favorites.');
-      setFavorites([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const addFavourite = async (districtName) => {
+        if (!token) {
+            alert("Please log in to add favorites.");
+            return false;
+        }
+        try {
+            const response = await axiosInstance.post('/favourite/add/', 
+                { district: districtName }, // Send district as part of the body
+                { headers: getAuthHeaders() }
+            );
+            console.log("Add favourite response:", response.data);
+            // Re-fetch or update state locally
+            fetchFavourites(); 
+            return true;
+        } catch (err) {
+            console.error("Error adding favourite:", err.response?.data || err.message);
+            setError(err);
+            alert(`Failed to add favorite: ${err.response?.data?.message || err.response?.data?.error || err.message}`);
+            return false;
+        }
+    };
 
-  const addFavorite = async (districtName) => {
-    if (!token) {
-      alert('Please log in to add favorites.');
-      return;
-    }
+    const removeFavourite = async (districtName) => {
+        if (!token) {
+            alert("Please log in to remove favorites.");
+            return false;
+        }
+        try {
+            // IMPORTANT: For DELETE with body, data property is used
+            const response = await axiosInstance.delete('/favourite/remove/', {
+                data: { district: districtName }, // Send district in data for DELETE
+                headers: getAuthHeaders()
+            });
+            console.log("Remove favourite response:", response.data);
+            // Re-fetch or update state locally
+            fetchFavourites(); 
+            return true;
+        } catch (err) {
+            console.error("Error removing favourite:", err.response?.data || err.message);
+            setError(err);
+            alert(`Failed to remove favorite: ${err.response?.data?.message || err.response?.data?.error || err.message}`);
+            return false;
+        }
+    };
 
-    try {
-      const res = await axiosInstance.post(
-        '/favourite/add/',
-        { district: districtName }, // <-- FIXED HERE
-        { headers: getAuthHeaders() }
-      );
-      if (res.status === 201 || res.status === 200) {
-        alert(`'${districtName}' added to favorites!`);
-        await fetchFavorites();
-      } else {
-        alert('Something went wrong while adding favorite.');
-      }
-    } catch (err) {
-      console.error('Add favorite error:', err);
-      alert(err.response?.data?.detail || 'Failed to add favorite.');
-    }
-  };
-
-  const removeFavorite = async (districtName) => {
-    if (!token) {
-      alert('Please log in to remove favorites.');
-      return;
-    }
-
-    try {
-      const res = await axiosInstance.post(
-        '/favourite/remove/',
-        { district: districtName }, // <-- FIXED HERE
-        { headers: getAuthHeaders() }
-      );
-      if (res.status === 200) {
-        alert(`'${districtName}' removed from favorites!`);
-        await fetchFavorites();
-      } else {
-        alert('Something went wrong while removing favorite.');
-      }
-    } catch (err) {
-      console.error('Remove favorite error:', err);
-      alert(err.response?.data?.detail || 'Failed to remove favorite.');
-    }
-  };
-
-  useEffect(() => {
-    fetchFavorites();
-  }, [token]);
-
-  return {
-    favorites,
-    loading,
-    error,
-    addFavorite,
-    removeFavorite,
-    fetchFavorites,
-  };
+    return { favourites, loading, error, addFavourite, removeFavourite, fetchFavourites };
 };
-
-export default useFavourites;

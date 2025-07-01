@@ -1,11 +1,10 @@
-// frontend/src/pages/Dashboard.jsx
 import React, { useEffect } from 'react';
 import './Dashboard.css';
 import DistrictSelector from '../components/DistrictSelector';
 import WeatherCard from '../components/WeatherCard';
 import AQICard from '../components/AQICard';
 import PredictionCard from '../components/PredictionCard';
-import useWeatherData from '../hooks/useWeatherData';
+import { useWeatherData } from '../hooks/useWeatherData.jsx'; // Correct import path and named export
 import useGeolocation from '../hooks/useGeolocation';
 import { useDistrict } from '../context/DistrictContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,26 +17,34 @@ export default function Dashboard() {
   const latitude = location ? location.lat : null;
   const longitude = location ? location.lon : null;
 
-  const { district, setDistrict } = useDistrict();
+  const { district, setDistrict } = useDistrict(); // This is `selectedDistrict` in useWeatherData
   const { token } = useAuth();
   const { addFavorite, favorites, loading: favLoading, error: favError, removeFavorite } = useFavourites();
 
   const { tempUnit, setTempUnit, windUnit, setWindUnit, theme, setTheme } = usePreferences();
 
-  // NEW: Destructure forecast from useWeatherData
-  const { weather, aqi, prediction, forecast, loading: weatherLoading, error: weatherError } = useWeatherData(latitude, longitude, district);
+  // Updated: Use new state names from useWeatherData hook
+  const {
+    weatherData,
+    aqiData,
+    predictionData,
+    forecastData,
+    overallLoading, // This combines loading states from all fetches
+    overallError,   // This combines error states from all fetches
+  } = useWeatherData(latitude, longitude, district); // Pass latitude, longitude, and district
 
   const isOnline = useOnlineStatus();
 
-  useEffect(() => {
-    if (latitude && longitude) {
-      console.log("Dashboard: Data will be fetched using Geolocation coordinates:", { latitude, longitude });
-    } else if (permissionDenied) {
-      console.log("Dashboard: Geolocation permission denied. Data will be fetched using selected district:", district);
-    } else {
-      console.log("Dashboard: Geolocation not available or pending. Data will be fetched using selected district:", district);
-    }
-  }, [latitude, longitude, permissionDenied, district]);
+  // No longer need this useEffect for console logs as it's handled in useWeatherData
+  // useEffect(() => {
+  //   if (latitude && longitude) {
+  //     console.log("Dashboard: Data will be fetched using Geolocation coordinates:", { latitude, longitude });
+  //   } else if (permissionDenied) {
+  //     console.log("Dashboard: Geolocation permission denied. Data will be fetched using selected district:", district);
+  //   } else {
+  //     console.log("Dashboard: Geolocation not available or pending. Data will be fetched using selected district:", district);
+  //   }
+  // }, [latitude, longitude, permissionDenied, district]);
 
   const handleAddFavorite = async () => {
     if (!token) {
@@ -49,7 +56,6 @@ export default function Dashboard() {
       return;
     }
     await addFavorite(district);
-    alert(`District '${district}' added to favorites! (or attempted to add)`);
   };
 
   const handleRemoveFavorite = async (favDistrict) => {
@@ -58,7 +64,11 @@ export default function Dashboard() {
       return;
     }
     await removeFavorite(favDistrict);
-    alert(`District '${favDistrict}' removed from favorites! (or attempted to remove)`);
+  };
+
+  const handleRemoveClick = (e, districtName) => {
+    e.stopPropagation();
+    handleRemoveFavorite(districtName);
   };
 
   const toggleTempUnit = () => {
@@ -144,26 +154,30 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {(weatherLoading || favLoading) && <p className="loading-message">Loading data...</p>}
-      {(weatherError || favError) && <p className="error-message">Error: {weatherError || favError}</p>}
+      {overallLoading && <p className="loading-message">Loading data...</p>}
+      {overallError && <p className="error-message">Error: {overallError.message || overallError}</p>}
 
       <div className="dashboard-cards-container">
-        {!weatherLoading && weather && (
+        {/* Only render weather cards if not loading and weather data exists and no overall error */}
+        {!overallLoading && !overallError && weatherData && (
           <>
             <WeatherCard
-              temp={weather.temp}
-              humidity={weather.humidity}
-              windSpeed={weather.windSpeed}
-              precipitation={weather.precipitation}
+              temp={weatherData.temp !== undefined && weatherData.temp !== null ? weatherData.temp : 'N/A'}
+              humidity={weatherData.humidity !== undefined && weatherData.humidity !== null ? weatherData.humidity : 'N/A'}
+              windSpeed={weatherData.wind_speed !== undefined && weatherData.wind_speed !== null ? weatherData.wind_speed : 'N/A'}
+              precipitation={weatherData.precip !== undefined && weatherData.precip !== null ? weatherData.precip : 'N/A'}
+              description={weatherData.description !== undefined && weatherData.description !== null ? weatherData.description : 'N/A'}
             />
-            <AQICard aqi={aqi} />
-            {/* NEW: Pass forecast to PredictionCard */}
-            <PredictionCard prediction={prediction} forecast={forecast} />
+            {/* Render AQICard only if aqiData is available */}
+            {aqiData !== null && aqiData !== undefined && <AQICard aqi={aqiData} />}
+            {/* Render PredictionCard only if predictionData is available */}
+            {predictionData !== null && predictionData !== undefined && <PredictionCard prediction={predictionData} forecast={forecastData} />}
           </>
         )}
 
-        {!weatherLoading && !weatherError && !weather && (
-          <p className="initial-message">Select a district to fetch data.</p>
+        {/* Display initial message if no data is loading, no error, and no weather data */}
+        {!overallLoading && !overallError && !weatherData && (
+          <p className="initial-message">Select a district or enable geolocation to fetch data.</p>
         )}
       </div>
 
@@ -174,12 +188,12 @@ export default function Dashboard() {
             {favorites.map((fav, index) => (
               <button
                 key={fav.id || index}
-                onClick={() => setDistrict(fav.name || fav)}
+                onClick={() => setDistrict(fav.district_name)}
                 className="favorite-item-button"
               >
-                {fav.name || fav}
+                {fav.district_name}
                 <span
-                  onClick={(e) => { e.stopPropagation(); handleRemoveFavorite(fav.name || fav); }}
+                  onClick={(e) => handleRemoveClick(e, fav.district_name)}
                   className="remove-favorite-button"
                 >❌</span>
               </button>

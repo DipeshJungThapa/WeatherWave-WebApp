@@ -1,8 +1,7 @@
 // src/components/DistrictSelector.jsx
 import React, { useContext } from "react"; 
 import { DistrictContext } from "../context/DistrictContext"; 
-import "./DistrictSelector.css";
-
+import './DistrictSelector.css';
 const DistrictSelector = () => {
   const { district, setDistrict } = useContext(DistrictContext);
 

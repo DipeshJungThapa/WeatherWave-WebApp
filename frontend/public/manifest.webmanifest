@@ -1,0 +1,22 @@
+{
+  "name": "WeatherWave",
+  "short_name": "WeatherWave",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Your go-to app for weather forecasts, AQI, and predictions.",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

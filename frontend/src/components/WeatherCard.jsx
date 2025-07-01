@@ -1,36 +1,31 @@
 // src/components/WeatherCard.jsx
 import React from 'react';
 import './WeatherCard.css';
-import { usePreferences } from '../context/PreferencesContext';
+const WeatherCard = ({ weather, loading, error }) => {
+    if (loading) {
+        return <div className="weather-card">Loading weather...</div>;
+    }
 
-// <--- NEW: Added windSpeed and precipitation props
-export default function WeatherCard({ temp, humidity, windSpeed, precipitation }) {
-  const { tempUnit, windUnit } = usePreferences();
+    if (error) {
+        return <div className="weather-card error">Error: {error.message || 'Failed to load weather data'}</div>;
+    }
 
-  const displayTemp = tempUnit === 'F' ? (temp * 9/5) + 32 : temp;
+    // Use optional chaining for safer access
+    const displayCity = weather?.city || 'N/A';
+    const displayTemp = weather?.temp !== undefined ? `${weather.temp}°C` : 'N/A';
+    const displayDescription = weather?.description || 'N/A';
+    const displayHumidity = weather?.humidity !== undefined ? `${weather.humidity}%` : 'N/A';
+    const displayWindSpeed = weather?.wind_speed !== undefined ? `${weather.wind_speed} m/s` : 'N/A';
 
-  // <--- NEW: Wind speed conversion logic
-  const displayWindSpeed = windUnit === 'kmh' ? (windSpeed * 3.6) : windSpeed; // Convert m/s to km/h
+    return (
+        <div className="weather-card">
+            <h2 className="weather-card-title">Current Weather for {displayCity}</h2>
+            <p className="weather-card-item">Temperature: {displayTemp}</p>
+            <p className="weather-card-item">Description: {displayDescription}</p>
+            <p className="weather-card-item">Humidity: {displayHumidity}</p>
+            <p className="weather-card-item">Wind Speed: {displayWindSpeed}</p>
+        </div>
+    );
+};
 
-  return (
-    <div className="weather-card">
-      <h2 className="card-title">Current Weather</h2>
-      <div className="card-content">
-        <p className="weather-info">
-          Temperature: {displayTemp.toFixed(1)}°{tempUnit}
-        </p>
-        <p className="weather-info">Humidity: {humidity}%</p>
-
-        {/* <--- NEW: Display Wind Speed and Precipitation conditionally */}
-        {windSpeed !== undefined && windSpeed !== null && (
-            <p className="weather-info">
-                Wind Speed: {displayWindSpeed.toFixed(1)} {windUnit === 'kmh' ? 'km/h' : 'm/s'}
-            </p>
-        )}
-        {precipitation !== undefined && precipitation !== null && (
-            <p className="weather-info">Precipitation: {precipitation.toFixed(1)} mm</p>
-        )}
-      </div>
-    </div>
-  );
-}
+export default WeatherCard;
