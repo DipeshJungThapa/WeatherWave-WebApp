@@ -1,29 +1,53 @@
-// src/components/AQICard.jsx
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter
+} from './ui/card';
+import { AirVent } from 'lucide-react';
 
-const AQICard = () => {
-  return (
-    <Card className="p-6 rounded-lg shadow-md">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold mb-2">Air Quality Information</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Dummy data for now */}
-        <p className="text-5xl font-bold text-center mb-2">85</p>
-        <p className="text-lg font-medium text-center text-green-600 mb-4">Moderate</p>
-        <p className="text-sm text-muted-foreground mb-4">
-          Air quality is moderate. Sensitive individuals should consider limiting outdoor activities.
-        </p>
-        <div className="grid grid-cols-2 gap-y-2 text-sm">
-          <p>PM2.5: 35 µg/m³</p>
-          <p>PM10: 55 µg/m³</p>
-          <p>O₃: 45 µg/m³</p>
-          <p>NO₂: 25 µg/m³</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+const getAqiInfo = (value) => {
+  if (value <= 50) return { label: "Good", color: "text-green-500", ring: "ring-green-500" };
+  if (value <= 100) return { label: "Moderate", color: "text-yellow-500", ring: "ring-yellow-500" };
+  if (value <= 150) return { label: "Unhealthy for Sensitive", color: "text-orange-500", ring: "ring-orange-500" };
+  if (value <= 200) return { label: "Unhealthy", color: "text-red-500", ring: "ring-red-500" };
+  if (value <= 300) return { label: "Very Unhealthy", color: "text-purple-500", ring: "ring-purple-500" };
+  return { label: "Hazardous", color: "text-red-800", ring: "ring-red-800" };
 };
 
-export default AQICard;
+export default function AQICard({ data }) {
+  const value = data?.AQI_Value;
+  const info = value != null ? getAqiInfo(value) : null;
+
+  return (
+    <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
+      <CardHeader>
+        <CardTitle className="text-lg">Air Quality</CardTitle>
+      </CardHeader>
+
+      <CardContent className="flex-1 flex flex-col items-center justify-center space-y-2">
+        {!info ? (
+          <p className="text-center text-sm text-muted-foreground">No AQI data available</p>
+        ) : (
+          <>
+            <div
+              className={`p-4 rounded-full bg-popover ring-4 ${info.ring} flex items-center justify-center`}
+            >
+              <AirVent className={`h-8 w-8 ${info.color}`} />
+            </div>
+            <div className="text-4xl font-extrabold">
+              <span className={info.color}>{value}</span>
+            </div>
+            <p className={`text-sm font-medium ${info.color}`}>{info.label}</p>
+          </>
+        )}
+      </CardContent>
+
+      <CardFooter className="text-xs text-muted-foreground text-center">
+        PM2.5 based AQI
+      </CardFooter>
+    </Card>
+  );
+}

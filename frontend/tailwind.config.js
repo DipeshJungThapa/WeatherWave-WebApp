@@ -1,8 +1,7 @@
-// tailwind.config.js
 const { fontFamily } = require('tailwindcss/defaultTheme');
 
 module.exports = {
-  darkMode: 'class', // ✅ THIS IS REQUIRED
+  darkMode: 'class',
   content: [
     './index.html',
     './src/**/*.{js,jsx,ts,tsx}',
@@ -22,27 +21,31 @@ module.exports = {
         'secondary-foreground': 'hsl(var(--secondary-foreground))',
         muted: 'hsl(var(--muted))',
         'muted-foreground': 'hsl(var(--muted-foreground))',
-        accent: 'hsl(var(--accent))',
-        'accent-foreground': 'hsl(var(--accent-foreground))',
         destructive: 'hsl(var(--destructive))',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        // Optional: for sidebar etc.
         sidebar: 'hsl(var(--sidebar))',
         'sidebar-foreground': 'hsl(var(--sidebar-foreground))',
         'sidebar-primary': 'hsl(var(--sidebar-primary))',
-        'sidebar-primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
         'sidebar-accent': 'hsl(var(--sidebar-accent))',
-        'sidebar-accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-        'sidebar-border': 'hsl(var(--sidebar-border))',
-        'sidebar-ring': 'hsl(var(--sidebar-ring))',
       },
       fontFamily: {
         sans: ['Inter', ...fontFamily.sans],
       },
       borderRadius: {
         lg: 'var(--radius)',
+      },
+      screens: {
+        xs: '480px',
+      },
+      boxShadow: {
+        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        md: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+      },
+      borderWidth: {
+        DEFAULT: '0px',
       },
     },
   },

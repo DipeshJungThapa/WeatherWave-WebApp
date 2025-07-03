@@ -6,9 +6,75 @@ import requests
 from dotenv import load_dotenv
 import os
 import datetime
+import joblib # Import joblib for loading models
+import pandas as pd # Import pandas for data manipulation
+import numpy as np # Import numpy for array operations
+
+# Corrected BASE_DIR calculation: Go up three levels from views.py
+# __file__ -> views.py -> forecast -> backend -> WeatherWave-WebApp
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml', 'models')
+ML_DATA_DIR = os.path.join(BASE_DIR, 'ml', 'data')
 
 load_dotenv()
 
+# --- Global Variables for ML Model, Encoder, and Data ---
+# These will be loaded once when the application starts
+ML_MODEL = None
+LABEL_ENCODER = None
+ENCODED_DISTRICTS_DF = None
+DISTRICT_GEOLOCATION_MAP = {} # To store district: (lat, lon) from the CSV
+
+# Define the exact 21 features your model was trained on, in the correct order
+MODEL_FEATURES = [
+    'Latitude', 'Longitude', 'Precip', 'Pressure', 'Humidity_2m', 'RH_2m',
+    'Temp_2m', 'WetBulbTemp_2m', 'MaxTemp_2m', 'MinTemp_2m', 'TempRange_2m',
+    'EarthSkinTemp', 'WindSpeed_10m', 'MaxWindSpeed_10m', 'MinWindSpeed_10m',
+    'WindSpeedRange_10m', 'WindSpeed_50m', 'MaxWindSpeed_50m',
+    'MinWindSpeed_50m', 'WindSpeedRange_50m', 'District_encoded'
+]
+
+def load_ml_assets():
+    """
+    Loads the ML model, label encoder, and encoded_districts.csv data once.
+    This function should ideally be called on Django app startup.
+    """
+    global ML_MODEL, LABEL_ENCODER, ENCODED_DISTRICTS_DF, DISTRICT_GEOLOCATION_MAP
+    try:
+        # Construct absolute paths to ML assets
+        # Assumes ml/models and ml/data are sibling directories to the Django app root
+        # Adjust these paths if your project structure is different
+        model_path = os.path.join(ML_MODELS_DIR, 'weather_model.pkl')
+        encoder_path = os.path.join(ML_MODELS_DIR, 'label_encoder.pkl')
+        data_path = os.path.join(ML_DATA_DIR, 'encoded_districts.csv')
+
+        ML_MODEL = joblib.load(model_path)
+        LABEL_ENCODER = joblib.load(encoder_path)
+        ENCODED_DISTRICTS_DF = pd.read_csv(data_path)
+        ENCODED_DISTRICTS_DF['Date'] = pd.to_datetime(ENCODED_DISTRICTS_DF['Date']) # Ensure Date is datetime
+
+        # Create a reverse map for district name to encoded value (for convenience)
+        # And a map for district name to its average lat/lon (from the dataset)
+        for i, class_name in enumerate(LABEL_ENCODER.classes_):
+            # Find an example lat/lon for this district from the loaded DF
+            # Take the mean if there are multiple entries for a district, or just the first
+            district_row = ENCODED_DISTRICTS_DF[ENCODED_DISTRICTS_DF['District_encoded'] == i].iloc[0]
+            DISTRICT_GEOLOCATION_MAP[class_name] = {
+                "latitude": district_row['Latitude'],
+                "longitude": district_row['Longitude'],
+                "encoded_value": i
+            }
+
+        print("ML assets loaded successfully!")
+    except Exception as e:
+        print(f"Error loading ML assets: {e}")
+        # In a production app, you might want to log this and potentially exit or disable ML features
+
+# Call the loading function once when this file is imported
+load_ml_assets()
+
+# --- Helper functions (from your original code, kept for context) ---
 from .models import Weather
 from .serializers import WeatherSerializer
 
@@ -24,7 +90,7 @@ def get_geolocation():
         longitude = loc[1] if len(loc) == 2 else None
         return {
             "ip": data.get('ip'),
-            "city": data.get('city'),
+            "city": data.get('city', ''), # FIXED: Added default value and closed parenthesis
             "region": data.get('region'),
             "country": data.get('country'),
             "latitude": latitude,
@@ -293,37 +359,99 @@ def get_alert(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-def predict_geo(request):
-    geo = get_geolocation()
-    if not geo or not geo.get("city"):
-        return Response({"error": "Could not determine city from geolocation"}, status=status.HTTP_400_BAD_REQUEST)
-    city = geo["city"]
-    # Load your model here (replace with your actual model path and logic)
-    # from sklearn.externals import joblib
-    # model = joblib.load('your_model_path')
-    # input_data = [[city]]
-    # try:
-    #     prediction = model.predict(input_data)
-    #     return Response({"predicted_temp": prediction[0]}, status=status.HTTP_200_OK)
-    # except Exception as e:
-    #     return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return Response({"message": "Model prediction logic not implemented."})
+def predict_city(request):
+    city_name = request.data.get('city')
+    if not city_name:
+        return Response({"error": "City name is required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure ML assets are loaded (they should be, but a quick check)
+    if ML_MODEL is None or LABEL_ENCODER is None or ENCODED_DISTRICTS_DF is None:
+        load_ml_assets() # Try to load if not already loaded
+        if ML_MODEL is None: # If still None after attempting to load, something is wrong
+            return Response({"error": "ML assets not loaded. Check server logs."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        # 1. Get the encoded district value
+        # Ensure the city name is in a list, as transform expects an array-like input
+        if city_name not in LABEL_ENCODER.classes_:
+            return Response({"error": f"City '{city_name}' not recognized for prediction. Available cities: {list(LABEL_ENCODER.classes_)}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        district_encoded = LABEL_ENCODER.transform([city_name])[0]
+
+        # 2. Find the most recent row for this district in the historical data
+        district_data = ENCODED_DISTRICTS_DF[ENCODED_DISTRICTS_DF['District_encoded'] == district_encoded]
+        if district_data.empty:
+            return Response({"error": f"No historical data found for district '{city_name}'."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Sort by date in ascending order and get the last row (most recent)
+        most_recent_data_row = district_data.sort_values(by='Date', ascending=True).iloc[-1]
+
+        # 3. Extract the 21 features in the correct order
+        # Convert the row to a dictionary and then extract values based on MODEL_FEATURES order
+        feature_values = most_recent_data_row[MODEL_FEATURES].values.reshape(1, -1)
+        # Reshape to (1, 21) as model.predict expects a 2D array, even for a single sample
+
+        # 4. Make the prediction
+        prediction = ML_MODEL.predict(feature_values)[0] # [0] to get the single numerical value
+
+        return Response({"predicted_temp": round(prediction, 2)}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error during predict_city: {e}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-def predict_city(request):
-    city = request.data.get('city')
-    if not city:
-        return Response({"error": "City name is required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
-    # Load your model here (replace with your actual model path and logic)
-    # from sklearn.externals import joblib
-    # model = joblib.load('your_model_path')
-    # input_data = [[city]]
-    # try:
-    #     prediction = model.predict(input_data)
-    #     return Response({"predicted_temp": prediction[0], status=status.HTTP_200_OK)
-    # except Exception as e:
-    #     return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return Response({"message": "Model prediction logic not implemented."})
+def predict_geo(request):
+    lat = request.data.get('lat')
+    lon = request.data.get('lon')
+
+    if not lat or not lon:
+        return Response({"error": "Latitude and Longitude are required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure ML assets are loaded
+    if ML_MODEL is None or LABEL_ENCODER is None or ENCODED_DISTRICTS_DF is None:
+        load_ml_assets()
+        if ML_MODEL is None:
+            return Response({"error": "ML assets not loaded. Check server logs."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        # 1. Find the closest district based on lat/lon from our historical data
+        # Calculate Euclidean distance to each district's lat/lon in our pre-computed map
+        min_dist = float('inf')
+        closest_district_name = None
+        closest_district_encoded_value = None
+
+        for district_name, coords in DISTRICT_GEOLOCATION_MAP.items():
+            dist = np.sqrt((float(lat) - coords['latitude'])**2 + (float(lon) - coords['longitude'])**2)
+            if dist < min_dist:
+                min_dist = dist
+                closest_district_name = district_name
+                closest_district_encoded_value = coords['encoded_value']
+        
+        if closest_district_name is None:
+            return Response({"error": "Could not find a matching district for the provided coordinates."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Log the resolved district for debugging
+        print(f"Resolved geo-coordinates ({lat}, {lon}) to district: {closest_district_name} (encoded: {closest_district_encoded_value})")
+
+        # 2. Find the most recent row for this district in the historical data
+        district_data = ENCODED_DISTRICTS_DF[ENCODED_DISTRICTS_DF['District_encoded'] == closest_district_encoded_value]
+        if district_data.empty:
+            return Response({"error": f"No historical data found for resolved district '{closest_district_name}'."}, status=status.HTTP_404_NOT_FOUND)
+
+        most_recent_data_row = district_data.sort_values(by='Date', ascending=True).iloc[-1]
+
+        # 3. Extract the 21 features in the correct order
+        feature_values = most_recent_data_row[MODEL_FEATURES].values.reshape(1, -1)
+
+        # 4. Make the prediction
+        prediction = ML_MODEL.predict(feature_values)[0]
+
+        return Response({"predicted_temp": round(prediction, 2), "resolved_district": closest_district_name}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error during predict_geo: {e}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 def get_current_weather_default(request):
