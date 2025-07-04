@@ -17,7 +17,7 @@ import { Heart } from 'lucide-react'; // <--- NEW: Import Heart icon for Favorit
 import { useAuth } from '../context/AuthContext';
 
 // Navbar now accepts props: onLocationChange (function) and currentDistrict (string or object)
-const Navbar = ({ onLocationChange, currentDistrict }) => {
+const Navbar = ({ onLocationChange, currentDistrict, unit, toggleUnit }) => { // Added unit and toggleUnit props
     const navigate = useNavigate();
     const { isAuthenticated, user, logout } = useAuth(); // Get auth state and logout function from context
 
@@ -35,7 +35,6 @@ const Navbar = ({ onLocationChange, currentDistrict }) => {
     const [geolocation, setGeolocation] = useState({ latitude: null, longitude: null, error: null });
     const [isGeoLoading, setIsGeoLoading] = useState(false);
 
-    const [unit, setUnit] = useState('celsius'); // 'celsius' or 'fahrenheit' - currently local to Navbar
     const { setTheme } = useTheme(); // Hook for Theme Toggle
 
     // Effect to update displayLocationLabel when currentDistrict prop changes
@@ -196,16 +195,16 @@ const Navbar = ({ onLocationChange, currentDistrict }) => {
                 {/* Unit Toggle (currently local to Navbar) */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80">
+                        <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={toggleUnit}>
                             <Thermometer className="h-5 w-5" />
                             <span className="sr-only">Toggle unit</span>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setUnit('celsius')}>
+                        <DropdownMenuItem onClick={() => toggleUnit()}>
                             <Thermometer className="mr-2 h-4 w-4" /> Celsius
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setUnit('fahrenheit')}>
+                        <DropdownMenuItem onClick={() => toggleUnit()}>
                             <Thermometer className="mr-2 h-4 w-4" /> Fahrenheit
                         </DropdownMenuItem>
                     </DropdownMenuContent>

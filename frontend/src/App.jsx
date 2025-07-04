@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom'; // <--- ADDED useNavigate
+import { ThemeProvider } from 'next-themes';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
@@ -12,6 +13,7 @@ import Navbar from './components/Navbar';
 function AppContent() {
     const { isAuthenticated, user, logout } = useAuth();
     const [currentDistrict, setCurrentDistrict] = useState('Kathmandu'); // Or your default city
+    const [unit, setUnit] = useState('Celsius'); // Added unit state
     const navigate = useNavigate(); // <--- INITIALIZE useNavigate HERE
 
     // This function is crucial for updating the Dashboard when a favorite is selected
@@ -27,13 +29,29 @@ function AppContent() {
         // if its internal state isn't already reactive to deletions.
     };
 
+    const toggleUnit = () => {
+        setUnit((prevUnit) => (prevUnit === 'Celsius' ? 'Fahrenheit' : 'Celsius'));
+    };
+
     return (
         <div className="flex flex-col min-h-screen">
-            <Navbar onLocationChange={setCurrentDistrict} currentDistrict={currentDistrict} user={user} />
+            <Navbar
+                onLocationChange={setCurrentDistrict}
+                currentDistrict={currentDistrict}
+                user={user}
+                unit={unit} // Pass unit state
+                toggleUnit={toggleUnit} // Pass toggleUnit function
+            />
             <main className="flex-1 p-4">
                 <Routes>
-                    <Route path="/" element={<Dashboard currentDistrict={currentDistrict} />} />
-                    <Route path="/dashboard" element={<Dashboard currentDistrict={currentDistrict} />} />
+                    <Route
+                        path="/"
+                        element={<Dashboard currentDistrict={currentDistrict} unit={unit} />} // Pass unit state
+                    />
+                    <Route
+                        path="/dashboard"
+                        element={<Dashboard currentDistrict={currentDistrict} unit={unit} />} // Pass unit state
+                    />
 
                     <Route path="/login" element={<AuthPage mode="login" />} />
                     <Route path="/register" element={<AuthPage mode="register" />} />
@@ -65,7 +83,9 @@ function App() {
     return (
         <Router>
             <AuthProvider>
-                <AppContent />
+                <ThemeProvider attribute="class">
+                    <AppContent />
+                </ThemeProvider>
             </AuthProvider>
         </Router>
     );

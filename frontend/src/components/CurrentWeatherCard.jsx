@@ -3,17 +3,18 @@ import React, { useEffect } from 'react'; // Import useEffect for console.log
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
 import { Thermometer, Droplet, Wind } from 'lucide-react';
 
-export default function CurrentWeatherCard({ data, currentCity }) {
+export default function CurrentWeatherCard({ data, currentCity, unit }) { // Added unit prop
   // Add a console log to see what data is being received
   useEffect(() => {
     console.log("CurrentWeatherCard received data:", data);
     console.log("CurrentWeatherCard received currentCity prop:", currentCity);
-  }, [data, currentCity]);
+    console.log("CurrentWeatherCard received unit prop:", unit);
+  }, [data, currentCity, unit]);
 
 
   if (!data) {
     return (
-      <Card className="hover:shadow hover:shadow-lg transition-shadow">
+      <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
           <CardTitle>No Data</CardTitle>
         </CardHeader>
@@ -43,8 +44,10 @@ export default function CurrentWeatherCard({ data, currentCity }) {
       displayCity = 'Unknown Location';
   }
 
+  const temperature = unit === 'Celsius' ? `${Math.round(data.temp)}°C` : `${Math.round(data.temp * 9/5 + 32)}°F`; // Convert temperature based on unit
+
   return (
-    <Card className="hover:shadow hover:shadow-lg transition-shadow flex flex-col justify-between">
+    <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between">
       <CardHeader>
         <CardTitle className="text-xl">{displayCity}</CardTitle>
         <p className="text-sm text-muted-foreground capitalize">{data.description}</p>
@@ -53,7 +56,7 @@ export default function CurrentWeatherCard({ data, currentCity }) {
       <CardContent className="flex flex-col items-center space-y-2">
         <div className="flex items-center space-x-2 text-5xl font-extrabold">
           <Thermometer className="h-8 w-8 text-primary" />
-          <span>{Math.round(data.temp)}°C</span>
+          <span>{temperature}</span>
         </div>
       </CardContent>
 

@@ -11,7 +11,7 @@ import { Button } from "../components/ui/button";
 import { Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Dashboard({ currentDistrict }) {
+export default function Dashboard({ currentDistrict, unit }) { // Added unit prop
     const { isAuthenticated, token } = useAuth();
 
     const {
@@ -227,9 +227,9 @@ export default function Dashboard({ currentDistrict }) {
                     )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                    {weatherData && <CurrentWeatherCard data={weatherData} currentCity={currentDistrict} />}
+                    {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} />}
                     {aqiData && <AQICard data={aqiData} />}
-                    {forecastData && <ForecastCard data={forecastData} />}
+                    {forecastData && <ForecastCard data={forecastData} unit={unit} />}
                     <PredictionCard data={predictionData} />
                 </div>
             </div>
@@ -250,11 +250,13 @@ export default function Dashboard({ currentDistrict }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {weatherData && <CurrentWeatherCard data={weatherData} currentCity={currentDistrict} />}
+                {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} />}
                 {aqiData && <AQICard data={aqiData} />}
-                {forecastData && <ForecastCard data={forecastData} />}
+                {forecastData && <ForecastCard data={forecastData} unit={unit} />}
                 <PredictionCard data={predictionData} />
             </div>
         </div>
     );
 }
+
+

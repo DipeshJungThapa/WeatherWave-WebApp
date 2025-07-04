@@ -19,7 +19,7 @@ import {
   Snowflake,
 } from 'lucide-react';
 
-function ForecastCard({ data }) {
+function ForecastCard({ data, unit }) {
   if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <Card className="flex flex-col items-center justify-center p-4">
@@ -45,7 +45,6 @@ function ForecastCard({ data }) {
 
   return (
     <Card className="w-full h-full flex flex-col justify-between p-6 overflow-hidden">
-      {/* Changed overflow-x-auto to overflow-hidden to prevent horizontal scrollbar */}
       <CardHeader>
         <CardTitle className="text-2xl font-bold">5-Day Forecast</CardTitle>
         <CardDescription className="text-muted-foreground">
@@ -75,14 +74,14 @@ function ForecastCard({ data }) {
             <div className="flex items-center space-x-3">
               <div className="flex items-center text-sm">
                 <ArrowUp className="h-4 w-4 text-red-500 mr-1" />
-                <span>{day.Weather.max_temp.toFixed(1)}°C</span>
+                <span>{unit === 'Celsius' ? `${day.Weather.max_temp.toFixed(1)}°C` : `${(day.Weather.max_temp * 9/5 + 32).toFixed(1)}°F`}</span>
               </div>
               <div className="flex items-center text-sm">
                 <ArrowDown className="h-4 w-4 text-blue-500 mr-1" />
-                <span>{day.Weather.min_temp.toFixed(1)}°C</span>
+                <span>{unit === 'Celsius' ? `${day.Weather.min_temp.toFixed(1)}°C` : `${(day.Weather.min_temp * 9/5 + 32).toFixed(1)}°F`}</span>
               </div>
               <div className="text-sm font-semibold">
-                {day.Weather.avg_temp.toFixed(1)}°C
+                {unit === 'Celsius' ? `${day.Weather.avg_temp.toFixed(1)}°C` : `${(day.Weather.avg_temp * 9/5 + 32).toFixed(1)}°F`}
               </div>
               {getWeatherIcon(day.Weather.description)}
             </div>
