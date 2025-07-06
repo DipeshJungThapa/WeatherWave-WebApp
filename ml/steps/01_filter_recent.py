@@ -17,7 +17,7 @@ try:
     # Define date range: from 5 years ago to 3 days before the most recent date
     most_recent_date = df['Date'].max()
     five_years_ago = most_recent_date - pd.DateOffset(years=5)
-    three_days_back = most_recent_date - pd.Timedelta(days=2)
+    three_days_back = most_recent_date - pd.Timedelta(days=3)
 
     # Filter the DataFrame to exclude the last 3 days
     df_filtered = df[(df['Date'] >= five_years_ago) & (df['Date'] <= three_days_back)]
