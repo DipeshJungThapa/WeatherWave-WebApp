@@ -2,5 +2,8 @@
   "dependencies": {
     "axios": "^1.10.0",
     "tailwindcss-dark-mode": "^1.1.7"
+  },
+  "devDependencies": {
+    "vite-plugin-pwa": "^1.0.1"
   }
 }

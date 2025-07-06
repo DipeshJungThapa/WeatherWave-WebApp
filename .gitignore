@@ -73,3 +73,7 @@ ml/models/*.pkl
 .vscode/
 .history/
 tempCodeRunnerFile.py
+
+# Ignore all package-lock.json and package.json files
+package-lock.json
+package.json

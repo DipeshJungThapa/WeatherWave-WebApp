@@ -61,7 +61,6 @@ function AppContent() {
                         element={<ProfilePage user={user} />}
                     />
 
-                    {/* Dedicated route for FavoriteLocations */}
                     <Route
                         path="/favorites"
                         element={
