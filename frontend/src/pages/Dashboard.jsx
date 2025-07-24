@@ -10,6 +10,8 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Heart, WifiOff, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ZoomEarthHeatmap from "../components/ZoomEarthHeatmap";
+
 
 export default function Dashboard({ currentDistrict, unit }) { // Added unit prop
     const { isAuthenticated, token } = useAuth();
@@ -292,6 +294,9 @@ return (
                 {forecastData && <ForecastCard data={forecastData} unit={unit} />}
                 <PredictionCard data={predictionData} unit={unit} />
             </div>
+        </div>
+        <div>
+            <ZoomEarthHeatmap />
         </div>
     </div>
 );

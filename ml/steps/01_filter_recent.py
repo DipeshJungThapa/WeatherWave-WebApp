@@ -1,38 +1,173 @@
 import pandas as pd
+import io
+from supabase import create_client, Client
+import logging
+from datetime import datetime
+import sys
+from typing import Optional, Tuple
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Supabase credentials
+from dotenv import load_dotenv
 import os
 
-input_file = 'ml/data/raw_climate_data.csv'
-output_file = 'ml/data/filtered.csv'
+# Load variables from ../.env (since you're in ml/steps and .env is in ml/)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+BUCKET_NAME = "ml-files"
+INPUT_FILE = "raw_data_interpolated.csv"
+OUTPUT_FILE = "filtered.csv"
 
-print("--- Starting 01_filter_recent.py ---")
+def initialize_supabase() -> Optional[Client]:
+    """Initialize and return Supabase client with error handling"""
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client: {str(e)}")
+        return None
 
-try:
-    df = pd.read_csv(input_file)
-    print(f"Loading data from: {input_file}")
-    print(f"Initial shape: {df.shape}")
+def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
+    """Validate DataFrame structure and required columns"""
+    required_columns = ['Date', 'District']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if missing_columns:
+        return False, f"Missing required columns: {', '.join(missing_columns)}"
+    
+    if df.empty:
+        return False, "DataFrame is empty"
+    
+    return True, ""
 
-    # Convert 'Date' column to datetime objects
-    df['Date'] = pd.to_datetime(df['Date'])
+def convert_dates(df: pd.DataFrame) -> Tuple[pd.DataFrame, bool]:
+    """Convert dates and handle invalid entries"""
+    try:
+        df['Date'] = df['Date'].astype(str)
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d', errors='coerce')
+        
+        initial_count = len(df)
+        df = df.dropna(subset=['Date'])
+        success = len(df) > 0
+        
+        if initial_count > len(df):
+            logger.warning(f"Removed {initial_count - len(df)} rows with invalid dates")
+        
+        return df, success
+    except Exception as e:
+        logger.error(f"Date conversion error: {str(e)}")
+        return df, False
 
-    # Filter data to include only the last 5 years (adjust as needed)
-    # Get the most recent date in the dataset
-    most_recent_date = df['Date'].max()
-    # Calculate the date 5 years ago from the most recent date
-    five_years_ago = most_recent_date - pd.DateOffset(years=5)
-    # Filter the DataFrame
-    df_filtered = df[df['Date'] >= five_years_ago]
+def filter_date_range(df: pd.DataFrame) -> pd.DataFrame:
+    """Filter DataFrame to last 5 years"""
+    try:
+        most_recent = df['Date'].max()
+        five_years_ago = most_recent - pd.DateOffset(years=5)
 
-    print(f"Filtered data to include dates from {five_years_ago.strftime('%Y-%m-%d')} onwards.")
-    print(f"Filtered shape: {df_filtered.shape}")
+        logger.info(f"Most recent date: {most_recent.date()}")
+        logger.info(f"Five years ago: {five_years_ago.date()}")
 
-    df_filtered.to_csv(output_file, index=False)
-    print(f"Filtered data saved to: {output_file}")
+        df_filtered = df[df['Date'] >= five_years_ago]
+        return df_filtered
+    except Exception as e:
+        logger.error(f"Date range filtering error: {str(e)}")
+        return pd.DataFrame()
 
-except FileNotFoundError:
-    print(f"Error: The file '{input_file}' was not found. Please ensure raw_climate_data.csv is in the ml/data/ directory.")
-except KeyError as e:
-    print(f"Error: Required column not found - {e}. Please check the input CSV file.")
-except Exception as e:
-    print(f"An unexpected error occurred: {e}")
+def upload_to_supabase(supabase: Client, df: pd.DataFrame, output_file: str) -> bool:
+    """Upload DataFrame to Supabase storage with Date as datetime"""
+    try:
+        # Convert to CSV bytes, keeping Date as datetime (YYYY-MM-DD)
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False, date_format='%Y-%m-%d')
+        csv_bytes = csv_buffer.getvalue().encode("utf-8")
 
-print("--- Finished 01_filter_recent.py ---")
+        # Remove existing file if it exists
+        try:
+            files = supabase.storage.from_(BUCKET_NAME).list()
+            if any(file['name'] == output_file for file in files):
+                supabase.storage.from_(BUCKET_NAME).remove([output_file])
+                logger.info(f"Removed existing file: {output_file}")
+        except Exception as e:
+            logger.warning(f"Could not check/remove existing file: {str(e)}")
+
+        # Upload file
+        supabase.storage.from_(BUCKET_NAME).upload(
+            output_file,
+            csv_bytes,
+            {"content-type": "text/csv"}
+        )
+        logger.info(f"Successfully uploaded filtered data to: {output_file}")
+        logger.info(f"Date column dtype in output: {df['Date'].dtype}")
+        return True
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        return False
+
+def filter_recent_data() -> bool:
+    """Main function to filter data to last 5 years"""
+    logger.info("Starting data filtering process")
+
+    # Initialize Supabase client
+    supabase = initialize_supabase()
+    if not supabase:
+        return False
+
+    try:
+        # Fetch CSV from Supabase
+        response = supabase.storage.from_(BUCKET_NAME).download(INPUT_FILE)
+        if not response:
+            logger.error(f"Could not fetch {INPUT_FILE} from Supabase bucket")
+            return False
+
+        # Read and validate DataFrame
+        df = pd.read_csv(io.BytesIO(response))
+        logger.info(f"Loaded data from Supabase: {INPUT_FILE}")
+        logger.info(f"Initial shape: {df.shape}")
+        logger.info(f"Columns: {list(df.columns)}")
+        logger.info(f"Sample Date values: {df['Date'].head().tolist()}")
+
+        is_valid, validation_message = validate_dataframe(df)
+        if not is_valid:
+            logger.error(validation_message)
+            return False
+
+        # Convert and validate dates
+        df, date_success = convert_dates(df)
+        if not date_success:
+            logger.error("No valid data after date parsing")
+            return False
+
+        # Filter date range
+        df_filtered = filter_date_range(df)
+        logger.info(f"Filtered shape: {df_filtered.shape}")
+        
+        if not df_filtered.empty:
+            logger.info(f"Districts in filtered data: {df_filtered['District'].nunique()}")
+            logger.info(f"Date range in filtered data: {df_filtered['Date'].min().date()} to {df_filtered['Date'].max().date()}")
+        else:
+            logger.warning("No data in the specified date range")
+
+        # Upload to Supabase
+        return upload_to_supabase(supabase, df_filtered, OUTPUT_FILE)
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return False
+    finally:
+        logger.info("Finished data filtering process")
+
+if __name__ == "__main__":
+    success = filter_recent_data()
+    if success:
+        logger.info("Script completed successfully!")
+    else:
+        logger.error("Script failed!")

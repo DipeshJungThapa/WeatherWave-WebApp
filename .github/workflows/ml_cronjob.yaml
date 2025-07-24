@@ -1,0 +1,38 @@
+name: ML Pipeline Cronjob
+
+on:
+  schedule:
+    # Run every day at 00:00 UTC
+    - cron: '0 0 * * *'
+
+jobs:
+  run_ml_pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x' # Use your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ml/requirements.txt
+        pip install pandas scikit-learn joblib # Install necessary libraries
+
+    - name: Run ML Pipeline
+      run: |
+        python ml/data/fetchdata.py
+        python ml/data/process.py
+        python ml/data/interpolation.py
+        python ml/steps/01_filter_recent.py
+        python ml/steps/02_clean_basic.py
+        python ml/steps/03_add_target_column.py
+        python ml/steps/04_drop_missing.py
+        python ml/steps/05_encode_district.py
+        python ml/steps/06_train_model.py
+        python ml/steps/07_predict.py

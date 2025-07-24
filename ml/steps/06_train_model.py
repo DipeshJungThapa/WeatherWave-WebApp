@@ -1,81 +1,163 @@
 import pandas as pd
-import os
-import joblib
+import io
+from supabase import create_client, Client
+import logging
+import sys
+from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor # A common choice for regression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
+import joblib
+import os
+from dotenv import load_dotenv
+from googleapiclient.errors import HttpError
 
-def train_weather_model(input_file="ml/data/encoded_districts.csv",
-                        model_output_path="ml/models/weather_model.pkl",
-                        target_column='Temp_2m_tomorrow',
-                        test_size=0.2,
-                        random_state=42):
-    """
-    Loads the preprocessed data, splits it into training and testing sets,
-    trains a RandomForestRegressor model, evaluates it, and saves the trained model.
+# Google Drive API imports for service account
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
-    Input: ml/data/encoded_districts.csv
-    Output: ml/models/weather_model.pkl
-    """
-    print(f"--- Starting 06_train_model.py ---")
-    print(f"Loading data from: {input_file}")
+# Logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
+# Load environment variables
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+BUCKET_NAME = "ml-files"
+INPUT_FILE = "encoded_districts.csv"
+TARGET_COLUMN = "Temp_2m_tomorrow"
+TEST_SIZE = 0.2
+RANDOM_STATE = 42
+
+# Google Drive service account configuration
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
+DRIVE_FILE_ID = "1pGwE1lnHU-ZFWilY_ZivSCYFsrQASkZk"
+SCOPES = ['https://www.googleapis.com/auth/drive']
+
+def initialize_supabase() -> Optional[Client]:
     try:
-        df = pd.read_csv(input_file)
-    except FileNotFoundError:
-        print(f"Error: The file '{input_file}' was not found.")
-        print("Please ensure 'encoded_districts.csv' is in the 'ml/data/' directory after running 05_encode_district.py.")
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client: {str(e)}")
+        return None
+
+def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
+    required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow', 'District_encoded']
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        return False, f"Missing required columns: {', '.join(missing)}"
+    if df.empty:
+        return False, "DataFrame is empty"
+    try:
+        sample_dates = df['Date'].dropna().head(5)
+        for date in sample_dates:
+            pd.to_datetime(date, format='%Y-%m-%d', errors='raise')
+        logger.info("Date column format validated as YYYY-MM-DD")
+    except ValueError as e:
+        return False, f"Invalid date format in 'Date': {str(e)}"
+    return True, ""
+
+def train_model(df: pd.DataFrame) -> Tuple[Optional[RandomForestRegressor], float, float]:
+    try:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df.dropna(subset=['Date'], inplace=True)
+
+        excluded = ['Date', 'District', TARGET_COLUMN, 'Unnamed: 0']
+        features = [c for c in df.columns if c not in excluded]
+        if 'District_encoded' in df.columns and 'District_encoded' not in features:
+            features.append('District_encoded')
+
+        X = df[features].astype('float32')
+        y = df[TARGET_COLUMN].astype('float32')
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)
+
+        model = RandomForestRegressor(n_estimators=5, random_state=RANDOM_STATE, n_jobs=1)
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        logger.info(f"Model Evaluation - MAE: {mae:.2f}, R2: {r2:.2f}")
+        return model, mae, r2
+    except Exception as e:
+        logger.error(f"Model training error: {str(e)}")
+        return None, 0.0, 0.0
+
+def upload_model_to_drive_service_account(model) -> bool:
+    try:
+        creds = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build('drive', 'v3', credentials=creds)
+
+        model_bytes = io.BytesIO()
+        joblib.dump(model, model_bytes)
+        model_bytes.seek(0)
+
+        media = MediaIoBaseUpload(model_bytes, mimetype='application/octet-stream')
+
+        try:
+            service.files().get(fileId=DRIVE_FILE_ID).execute()
+            service.files().update(fileId=DRIVE_FILE_ID, media_body=media).execute()
+            logger.info("Model updated in existing Google Drive file.")
+        except HttpError as e:
+            if e.resp.status == 404:
+                logger.warning("Existing file not found. Creating a new file.")
+                file_metadata = {
+                    'name': 'weather_model1.pkl',
+                    'mimeType': 'application/octet-stream'
+                }
+                created = service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id'
+                ).execute()
+                logger.info(f"New model uploaded. File ID: {created.get('id')}")
+            else:
+                raise
+
+        return True
+    except Exception as e:
+        logger.error(f"Drive upload failed: {str(e)}", exc_info=True)
         return False
 
-    print(f"Data loaded. Shape: {df.shape}")
+def main():
+    logger.info("Starting model training and upload process.")
 
-    # Define features (X) and target (y)
-    # --- CRITICAL CHANGE: EXCLUDE 'Unnamed: 0' FROM FEATURES ---
-    excluded_columns = ['Date', 'District', target_column, 'Unnamed: 0'] # Explicitly exclude 'Unnamed: 0'
+    supabase = initialize_supabase()
+    if not supabase:
+        return
 
-    features = [col for col in df.columns if col not in excluded_columns]
+    try:
+        response = supabase.storage.from_(BUCKET_NAME).download(INPUT_FILE)
+        df = pd.read_csv(io.BytesIO(response))
 
-    # Ensure 'District_encoded' is included if 'District' was removed and encoding happened
-    if 'District_encoded' in df.columns and 'District_encoded' not in features:
-        features.append('District_encoded')
-    # --- END CRITICAL CHANGE ---
+        is_valid, msg = validate_dataframe(df)
+        if not is_valid:
+            logger.error(f"Data validation failed: {msg}")
+            return
 
-    X = df[features]
-    y = df[target_column]
+        model, mae, r2 = train_model(df)
+        if model is None:
+            logger.error("Model training failed.")
+            return
 
-    print(f"Features (X) shape: {X.shape}")
-    print(f"Target (y) shape: {y.shape}")
-    print(f"Features used for training: {features}") # Changed print statement for clarity
-
-
-    # Split data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    print(f"Data split into training ({len(X_train)} samples) and testing ({len(X_test)} samples).")
-
-    # Initialize and train the model
-    print("Training RandomForestRegressor model...")
-    model = RandomForestRegressor(n_estimators=100, random_state=random_state, n_jobs=-1) # n_jobs=-1 uses all available cores
-    model.fit(X_train, y_train)
-    print("Model training complete.")
-
-    # Evaluate the model
-    y_pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f"\nModel Evaluation:")
-    print(f"Mean Absolute Error (MAE): {mae:.2f}")
-    print(f"R-squared (R2) Score: {r2:.2f}")
-
-    # Ensure model output directory exists
-    os.makedirs(os.path.dirname(model_output_path), exist_ok=True)
-
-    # Save the trained model (will be ignored by Git due to .gitignore)
-    joblib.dump(model, model_output_path)
-    print(f"Trained model saved to: {model_output_path}")
-
-    print(f"--- Finished 06_train_model.py ---")
-    return True
+        success = upload_model_to_drive_service_account(model)
+        if success:
+            logger.info("Process completed successfully.")
+        else:
+            logger.error("Model upload failed.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
 
 if __name__ == "__main__":
-    train_weather_model()
+    main()
