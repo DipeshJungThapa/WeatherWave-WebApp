@@ -182,6 +182,11 @@ def get_current_weather(request):
         city_name = city if city else (weather.get("city_name") if weather else None)
     elif city:
         lat, lon = get_lat_lon_from_city(city)
+        if not lat or not lon:
+            # Fallback to manual map
+            geo = DISTRICT_GEOLOCATION_MAP.get(city)
+            if geo:
+                lat, lon = geo['latitude'], geo['longitude']
         if lat and lon:
             weather = get_weather(lat, lon, API_KEY)
             city_name = city
@@ -221,6 +226,11 @@ def get_aqi(request):
         query_lat, query_lon = lat, lon
     elif city:
         query_lat, query_lon = get_lat_lon_from_city(city)
+        if not query_lat or not query_lon:
+            # Fallback to manual map
+            geo = DISTRICT_GEOLOCATION_MAP.get(city)
+            if geo:
+                query_lat, query_lon = geo['latitude'], geo['longitude']
     else:
         geo = get_geolocation()
         query_lat = geo.get("latitude") if geo else None
@@ -316,6 +326,11 @@ def get_weather_forecast(request):
         query_lat, query_lon = lat, lon
     elif city:
         query_lat, query_lon = get_lat_lon_from_city(city)
+        if not query_lat or not query_lon:
+            # Fallback to manual map
+            geo = DISTRICT_GEOLOCATION_MAP.get(city)
+            if geo:
+                query_lat, query_lon = geo['latitude'], geo['longitude']
     else:
         geo = get_geolocation()
         query_lat = geo.get("latitude") if geo else None
