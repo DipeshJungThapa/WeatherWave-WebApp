@@ -226,7 +226,15 @@ export default function Dashboard({ currentDistrict, unit }) {
 
     // Main display when data is available (either live or cached)
     return (
+        
         <div className="container mx-auto p-6 space-y-6">
+            <div className="container mx-auto p-6 space-y-6">
+                 <Alert className="mb-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                     <AlertTriangle className="h-4 w-4" />
+                     <AlertTitle>Weather Alerts:</AlertTitle>
+                     <AlertDescription>{error}{/*alert ko logic ya kei */}</AlertDescription>
+                 </Alert>
+             </div>
             {/* Offline Mode Info */}
             {isOffline && (
                 <Alert className="mb-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">

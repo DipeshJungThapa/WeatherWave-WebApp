@@ -382,15 +382,20 @@ def get_alert(request):
     lat = request.query_params.get('lat')
     lon = request.query_params.get('lon')
     city = request.query_params.get('city')
-    API_KEY = os.getenv('WEATHER_API_KEY')
+    API_KEY = os.getenv('WEATHERBIT_API_KEY') 
 
     if not API_KEY:
-        return Response({"error": "Weather API key not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Weatherbit API key not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if lat and lon:
         query_lat, query_lon = lat, lon
     elif city:
         query_lat, query_lon = get_lat_lon_from_city(city)
+        if not query_lat or not query_lon:
+            # Fallback to manual map
+            geo = DISTRICT_GEOLOCATION_MAP.get(city)
+            if geo:
+                query_lat, query_lon = geo['latitude'], geo['longitude']
     else:
         geo = get_geolocation()
         query_lat = geo.get("latitude") if geo else None
@@ -400,14 +405,14 @@ def get_alert(request):
         return Response({"error": "Could not determine location"}, status=status.HTTP_400_BAD_REQUEST)
 
     alert_url = (
-        f"http://api.weatherapi.com/v1/alerts.json?"
-        f"key={API_KEY}&q={query_lat},{query_lon}"
+        f"https://api.weatherbit.io/v2.0/alerts?lat={query_lat}&lon={query_lon}&key={API_KEY}"
     )
+
     try:
         response = requests.get(alert_url)
         response.raise_for_status()
         data = response.json()
-        alerts = data.get('alerts', {}).get('alert', [])
+        alerts = data.get('alerts', [])
         if not alerts:
             return Response({"message": "No weather alerts at this time."})
         return Response({"alerts": alerts})
