@@ -7,6 +7,7 @@ import ForecastCard from "../components/ForecastCard";
 import PredictionCard from "../components/PredictionCard";
 import NepalWeatherHeatmap from "../components/ZoomEarthHeatmap";
 import WeatherNews from "../components/WeatherNews";
+// import WeatherWidgets from "../components/WeatherWidgets";
 
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Skeleton } from "../components/ui/skeleton";
@@ -400,6 +401,11 @@ export default function Dashboard({ currentDistrict, unit }) {
             <div>
                 <WeatherNews />
             </div>
+            
+            {/* Weather Widgets & External Sources - Temporarily Disabled */}
+            {/* <div>
+                <WeatherWidgets />
+            </div> */}
         </div>
     );
 }
