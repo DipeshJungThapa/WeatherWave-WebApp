@@ -22,7 +22,7 @@ const useWeatherData = (location) => {
     }, []); // Memoize getLocationKey
 
     useEffect(() => {
-        const locationKey = getLocationKey(location);
+        let locationKey = getLocationKey(location);
         let cachedData = localStorage.getItem(`weatherCache_${locationKey}`);
         let parsedCache = null;
         let usedInitialCache = false;

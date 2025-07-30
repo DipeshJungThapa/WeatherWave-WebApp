@@ -5,12 +5,13 @@ import CurrentWeatherCard from "../components/CurrentWeatherCard";
 import AQICard from "../components/AQICard";
 import ForecastCard from "../components/ForecastCard";
 import PredictionCard from "../components/PredictionCard";
-import ZoomEarthHeatmap from "../components/ZoomEarthHeatmap";
+import NepalWeatherHeatmap from "../components/ZoomEarthHeatmap";
+import WeatherNews from "../components/WeatherNews";
 
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
-import { Heart, WifiOff, AlertTriangle } from 'lucide-react';
+import { Heart, WifiOff, AlertTriangle, CloudAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard({ currentDistrict, unit }) {
@@ -29,6 +30,49 @@ export default function Dashboard({ currentDistrict, unit }) {
 
     const [isFavorited, setIsFavorited] = useState(false);
     const [currentFavoriteId, setCurrentFavoriteId] = useState(null);
+    const [weatherAlerts, setWeatherAlerts] = useState([]);
+    const [alertsLoading, setAlertsLoading] = useState(false);
+    const [alertsError, setAlertsError] = useState(null);
+
+    // Fetch weather alerts from backend API
+    const fetchWeatherAlerts = useCallback(async (city) => {
+        if (!city || isOffline) return;
+        
+        setAlertsLoading(true);
+        setAlertsError(null);
+        
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/api/alert/?city=${encodeURIComponent(city)}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setWeatherAlerts(data.alerts || []);
+            } else {
+                setAlertsError('Failed to fetch weather alerts');
+                setWeatherAlerts([]);
+            }
+        } catch (err) {
+            console.error('Weather alerts fetch error:', err);
+            setAlertsError('Unable to load weather alerts');
+            setWeatherAlerts([]);
+        } finally {
+            setAlertsLoading(false);
+        }
+    }, [isOffline]);
+
+    // Fetch alerts when weather data or district changes
+    useEffect(() => {
+        const city = weatherData?.city || currentDistrict;
+        if (city && !isOffline) {
+            fetchWeatherAlerts(city);
+        }
+    }, [weatherData?.city, currentDistrict, fetchWeatherAlerts, isOffline]);
 
     const checkIfFavorited = useCallback(async (cityToCheck) => {
         if (!token || typeof cityToCheck !== 'string' || !cityToCheck) {
@@ -228,13 +272,72 @@ export default function Dashboard({ currentDistrict, unit }) {
     return (
         
         <div className="container mx-auto p-6 space-y-6">
-            <div className="container mx-auto p-6 space-y-6">
-                 <Alert className="mb-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                     <AlertTriangle className="h-4 w-4" />
-                     <AlertTitle>Weather Alerts:</AlertTitle>
-                     <AlertDescription>{error}{/*alert ko logic ya kei */}</AlertDescription>
-                 </Alert>
-             </div>
+            {/* Weather Alerts Section */}
+            <div className="mb-4">
+                {alertsLoading ? (
+                    <Alert className="bg-blue-50 border-blue-200">
+                        <CloudAlert className="h-4 w-4 text-blue-600" />
+                        <AlertTitle className="text-blue-800">Loading Weather Alerts...</AlertTitle>
+                        <AlertDescription className="text-blue-700">
+                            Checking for active weather warnings...
+                        </AlertDescription>
+                    </Alert>
+                ) : alertsError ? (
+                    <Alert className="bg-yellow-50 border-yellow-200">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        <AlertTitle className="text-yellow-800">Weather Alerts Unavailable</AlertTitle>
+                        <AlertDescription className="text-yellow-700">
+                            {alertsError}
+                        </AlertDescription>
+                    </Alert>
+                ) : weatherAlerts.length > 0 ? (
+                    <div className="space-y-2">
+                        {weatherAlerts.map((alert, index) => (
+                            <Alert 
+                                key={index} 
+                                className={`
+                                    ${alert.severity === 'severe' ? 'bg-red-50 border-red-200' : 
+                                      alert.severity === 'moderate' ? 'bg-orange-50 border-orange-200' : 
+                                      'bg-yellow-50 border-yellow-200'}
+                                `}
+                            >
+                                <AlertTriangle className={`h-4 w-4 ${
+                                    alert.severity === 'severe' ? 'text-red-600' : 
+                                    alert.severity === 'moderate' ? 'text-orange-600' : 
+                                    'text-yellow-600'
+                                }`} />
+                                <AlertTitle className={`
+                                    ${alert.severity === 'severe' ? 'text-red-800' : 
+                                      alert.severity === 'moderate' ? 'text-orange-800' : 
+                                      'text-yellow-800'}
+                                `}>
+                                    {alert.event || 'Weather Alert'}
+                                </AlertTitle>
+                                <AlertDescription className={`
+                                    ${alert.severity === 'severe' ? 'text-red-700' : 
+                                      alert.severity === 'moderate' ? 'text-orange-700' : 
+                                      'text-yellow-700'}
+                                `}>
+                                    {alert.description || alert.title}
+                                    {alert.effective && (
+                                        <div className="mt-1 text-xs">
+                                            Effective: {new Date(alert.effective).toLocaleString()}
+                                        </div>
+                                    )}
+                                </AlertDescription>
+                            </Alert>
+                        ))}
+                    </div>
+                ) : (
+                    <Alert className="bg-green-50 border-green-200">
+                        <CloudAlert className="h-4 w-4 text-green-600" />
+                        <AlertTitle className="text-green-800">No Active Weather Alerts</AlertTitle>
+                        <AlertDescription className="text-green-700">
+                            No weather warnings currently active for {weatherData?.city || currentDistrict}.
+                        </AlertDescription>
+                    </Alert>
+                )}
+            </div>
             {/* Offline Mode Info */}
             {isOffline && (
                 <Alert className="mb-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
@@ -290,7 +393,12 @@ export default function Dashboard({ currentDistrict, unit }) {
                      </Alert>
                  )}
                  {/* Only show heatmap iframe if online */}
-                 {!isOffline && <ZoomEarthHeatmap />}
+                 {!isOffline && <NepalWeatherHeatmap />}
+            </div>
+
+            {/* Weather News Section */}
+            <div>
+                <WeatherNews />
             </div>
         </div>
     );
