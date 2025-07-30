@@ -22,6 +22,7 @@ Thumbs.db
 
 # ML Specific
 ml/model.pkl # To ignore your trained model file (for the trained model file)
+ml/data/     # To ignore your raw data files (for the data folder)
 
 # Python / Django
 __pycache__/
@@ -35,6 +36,9 @@ venv/
 *.pkl
 *.csv
 
+# Ignore model and data folders
+ml/models/
+ml/data/
 
 # Python-specific
 __pycache__/
