@@ -18,21 +18,21 @@ function DropdownMenuPortal({
   return (<DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />);
 }
 
-function DropdownMenuTrigger({
-  ...props
-}) {
-  return (<DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />);
-}
+const DropdownMenuTrigger = React.forwardRef((props, ref) => {
+  return (<DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" ref={ref} {...props} />);
+})
+DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
-function DropdownMenuContent({
+const DropdownMenuContent = React.forwardRef(({
   className,
   sideOffset = 4,
   ...props
-}) {
+}, ref) => {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
+        ref={ref}
         sideOffset={sideOffset}
         className={cn(
           "bg-white text-black border border-gray-300 shadow-lg rounded-md p-2 z-50 min-w-[8rem] max-h-[20rem] overflow-auto",
@@ -41,7 +41,8 @@ function DropdownMenuContent({
         {...props} />
     </DropdownMenuPrimitive.Portal>
   );
-}
+})
+DropdownMenuContent.displayName = "DropdownMenuContent"
 
 function DropdownMenuGroup({
   ...props
@@ -49,24 +50,26 @@ function DropdownMenuGroup({
   return (<DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />);
 }
 
-function DropdownMenuItem({
+const DropdownMenuItem = React.forwardRef(({
   className,
   inset,
   variant = "default",
   ...props
-}) {
+}, ref) => {
   return (
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-inset={inset}
       data-variant={variant}
+      ref={ref}
       className={cn(
         "focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props} />
   );
-}
+})
+DropdownMenuItem.displayName = "DropdownMenuItem"
 
 function DropdownMenuCheckboxItem({
   className,

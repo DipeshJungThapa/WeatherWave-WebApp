@@ -11,22 +11,24 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "./dialog"
 
-function Command({
+const Command = React.forwardRef(({
   className,
   ...props
-}) {
+}, ref) => {
   return (
     <CommandPrimitive
       data-slot="command"
+      ref={ref}
       className={cn(
         "bg-white text-black border border-gray-300 shadow-lg rounded-md p-2 z-50 min-w-[8rem] max-h-[20rem] overflow-auto",
         className
       )}
       {...props} />
   );
-}
+})
+Command.displayName = "Command"
 
 function CommandDialog({
   title = "Command Palette",
@@ -54,10 +56,10 @@ function CommandDialog({
   );
 }
 
-function CommandInput({
+const CommandInput = React.forwardRef(({
   className,
   ...props
-}) {
+}, ref) => {
   return (
     <div
       data-slot="command-input-wrapper"
@@ -65,6 +67,7 @@ function CommandInput({
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
+        ref={ref}
         className={cn(
           "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
           className
@@ -72,19 +75,22 @@ function CommandInput({
         {...props} />
     </div>
   );
-}
+})
+CommandInput.displayName = "CommandInput"
 
-function CommandList({
+const CommandList = React.forwardRef(({
   className,
   ...props
-}) {
+}, ref) => {
   return (
     <CommandPrimitive.List
       data-slot="command-list"
+      ref={ref}
       className={cn("max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto", className)}
       {...props} />
   );
-}
+})
+CommandList.displayName = "CommandList"
 
 function CommandEmpty({
   ...props
@@ -119,20 +125,22 @@ function CommandSeparator({
   );
 }
 
-function CommandItem({
+const CommandItem = React.forwardRef(({
   className,
   ...props
-}) {
+}, ref) => {
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
+      ref={ref}
       className={cn(
         "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props} />
   );
-}
+})
+CommandItem.displayName = "CommandItem"
 
 function CommandShortcut({
   className,
