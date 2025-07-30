@@ -114,8 +114,8 @@ const Navbar = ({ onLocationChange, currentDistrict, unit, toggleUnit }) => { //
         <header className="bg-primary/30 backdrop-blur-md text-primary-foreground p-4 flex justify-between items-center shadow-md border-b border-opacity-20">
             {/* Left side: App Name/Logo */}
             <Link to="/" className="flex items-center space-x-2 text-2xl font-bold">
-                {/* Assuming you have weatherwave-logo.png in your public folder */}
-                <img src="/weatherwave-logo.png" alt="WeatherWave Logo" className="h-8 w-8" />
+                {/* Using new remove-bg weatherwave logo */}
+                <img src="/weatherwave-logo-removebg-preview.png" alt="WeatherWave Logo" className="h-8 w-8" />
                 <span>WeatherWave</span>
             </Link>
 

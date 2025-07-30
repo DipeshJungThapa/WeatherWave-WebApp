@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['pws-192-192.png', 'pws-512-512.png'],
+      includeAssets: ['pws-192-192-removebg-preview.png', 'pws-512-512-removebg-preview.png'],
       manifest: {
         name: 'WeatherWave App',
         short_name: 'WeatherWave',
@@ -20,12 +20,12 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: 'pws-192-192.png',
+            src: 'pws-192-192-removebg-preview.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'pws-512-512.png',
+            src: 'pws-512-512-removebg-preview.png',
             sizes: '512x512',
             type: 'image/png',
           }
