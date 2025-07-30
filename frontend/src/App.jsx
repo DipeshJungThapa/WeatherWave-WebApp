@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom'; // <--- ADDED useNavigate
 import { ThemeProvider } from 'next-themes';
 import Dashboard from './pages/Dashboard';
-import AuthPage from './pages/AuthPage';
+import AuthPageSimple from './pages/AuthPageSimple';
 import ProfilePage from './pages/ProfilePage';
 import FavoriteLocations from './components/FavoriteLocations';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -53,8 +53,8 @@ function AppContent() {
                         element={<Dashboard currentDistrict={currentDistrict} unit={unit} />} // Pass unit state
                     />
 
-                    <Route path="/login" element={<AuthPage mode="login" />} />
-                    <Route path="/register" element={<AuthPage mode="register" />} />
+                    <Route path="/login" element={<AuthPageSimple mode="login" />} />
+                    <Route path="/register" element={<AuthPageSimple mode="register" />} />
 
                     <Route
                         path="/profile"
