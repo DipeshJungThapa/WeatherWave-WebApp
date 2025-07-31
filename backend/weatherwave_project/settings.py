@@ -101,14 +101,32 @@ import dj_database_url
 
 DATABASES = {
     'default': dj_database_url.parse(
-        "postgresql://postgres.qgrkryybipeunbcvxukk:WeatherWave2025@aws-0-ap-south-1.pooler.supabase.com:5432/postgres",
-        conn_max_age=600,
-        ssl_require=True
+        "postgresql://postgres.qgrkryybipeunbcvxukk:WeatherWave2025@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+        conn_max_age=0,  # Set to 0 for transaction mode
+        ssl_require=True,
     )
 }
 
+# Add connection pool settings for Supabase
+DATABASES['default']['OPTIONS'] = {
+    'connect_timeout': 10,
+}
 
 
+# import dj_database_url
+
+# DATABASES = {
+#     'default': dj_database_url.parse(
+#         "postgresql://postgres.qgrkryybipeunbcvxukk:WeatherWave2025@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+#         conn_max_age=0,  # Set to 0 for transaction mode
+#         ssl_require=True,
+#     )
+# }
+
+# # Add connection pool settings for Supabase
+# DATABASES['default']['OPTIONS'] = {
+#     'connect_timeout': 10,
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
