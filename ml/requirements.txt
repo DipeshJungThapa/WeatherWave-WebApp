@@ -1,3 +1,8 @@
+pandas
+scikit-learn
+joblib
+numpy
+jupyter 
 annotated-types==0.7.0
 anyio==4.9.0
 asgiref==3.8.1
@@ -93,4 +98,5 @@ wcwidth==0.2.13
 win32_setctime==1.2.0
 feedparser==6.0.11
 beautifulsoup4==4.12.3
-supabase==2.13.0
+supabase
+
