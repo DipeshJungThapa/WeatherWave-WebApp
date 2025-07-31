@@ -7,20 +7,18 @@ from datetime import datetime, timedelta, timezone
 from supabase import create_client
 import numpy as np
 
-# Supabase credentials (use environment variables in production)
-from dotenv import load_dotenv
-
-# Load variables from ../.env (since you're in ml/steps and .env is in ml/)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
-SUPABASE_URL = os.getenv("SUPABASE_URL" )
+# Supabase credentials from environment variables (set in GitHub Actions secrets)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = "ml-files"
 FILE_PATH = "raw_data.csv"
 
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise EnvironmentError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables.")
+
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Define districts
 districts = {
     "Achham": (29.12, 81.30), "Arghakhanchi": (27.95, 83.22), "Baglung": (28.27, 83.61),
     "Baitadi": (29.53, 80.43), "Bajhang": (29.72, 81.25), "Bajura": (29.51, 81.50),
@@ -50,304 +48,198 @@ districts = {
     "Udayapur": (26.85, 86.67), "West Rukum": (28.63, 82.45)
 }
 
-# NASA POWER weather parameters
 parameters = [
     "PRECTOT", "PS", "QV2M", "RH2M", "T2M", "T2MWET", "T2M_MAX", "T2M_MIN",
     "TS", "WS10M", "WS10M_MAX", "WS10M_MIN", "WS50M", "WS50M_MAX", "WS50M_MIN"
 ]
 
-# Invalid values that indicate missing/bad data
 INVALID_VALUES = [-999, 999, -999.0, 999.0]
 
 def validate_coordinates(lat, lon):
-    """Validate latitude and longitude values"""
     if not (-90 <= lat <= 90):
         raise ValueError(f"Invalid latitude: {lat}")
     if not (-180 <= lon <= 180):
         raise ValueError(f"Invalid longitude: {lon}")
 
 def is_valid_weather_record(row):
-    """Check if a weather record has valid (non-missing, non-invalid) data for key parameters"""
-    # Key parameters that must have valid data
     key_params = ["T2M", "RH2M", "PS"]
-    
     valid_count = 0
     for param in key_params:
         if param in row:
             value = row[param]
-            # Check if value is not NaN, not None, not empty string, and not in invalid values
-            if (pd.notna(value) and 
-                value != '' and 
-                value is not None and 
-                value not in INVALID_VALUES):
+            if (pd.notna(value) and value != '' and value is not None and value not in INVALID_VALUES):
                 try:
-                    # Try to convert to float to ensure it's a valid number
                     float_val = float(value)
-                    if not np.isinf(float_val):  # Check for infinity
+                    if not np.isinf(float_val):
                         valid_count += 1
                 except (ValueError, TypeError):
                     continue
-    
-    # Require at least 2 out of 3 key parameters to be valid
     return valid_count >= 2
 
 def fetch_weather(district, lat, lon, start, end):
-    """Fetch weather data from NASA POWER API with improved error handling"""
     validate_coordinates(lat, lon)
-    
     url = (
         f"https://power.larc.nasa.gov/api/temporal/daily/point?"
         f"start={start}&end={end}&latitude={lat}&longitude={lon}"
         f"&community=ag&parameters={','.join(parameters)}&format=JSON"
     )
-    
     for attempt in range(3):
         try:
             response = requests.get(url, timeout=60)
             response.raise_for_status()
-            
             json_data = response.json()
             if "properties" not in json_data or "parameter" not in json_data["properties"]:
-                print(f"Invalid response structure for {district}")
+                print(f"[{district}] Invalid response structure")
                 continue
-                
             data = json_data["properties"]["parameter"]
-            
-            # Validate that we have temperature data (required parameter)
             if "T2M" not in data or not data["T2M"]:
-                print(f"No temperature data for {district}")
+                print(f"[{district}] No temperature data")
                 continue
-                
             dates = list(data["T2M"].keys())
-            
             rows = []
-            valid_records = 0
-            
             for date in dates:
                 row = {"DISTRICT": district, "LAT": lat, "LON": lon, "DATE": date}
                 for param in parameters:
-                    value = data.get(param, {}).get(date)
-                    # Store the raw value, validation will happen later
-                    row[param] = value
-                
-                # Only include records with valid data
+                    row[param] = data.get(param, {}).get(date)
                 if is_valid_weather_record(row):
                     rows.append(row)
-                    valid_records += 1
-            
-            print(f"✅ Successfully fetched {len(rows)} valid records for {district} (out of {len(dates)} total)")
+            print(f"[{district}] Fetched {len(rows)} valid records out of {len(dates)}")
             return rows
-            
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching {district} (attempt {attempt + 1}/3): {e}")
+            print(f"[{district}] Fetch error attempt {attempt + 1}/3: {e}")
             if attempt < 2:
-                time.sleep(2 ** attempt)  # Exponential backoff
-    
-    print(f"❌ Failed to fetch {district} after 3 attempts")
+                time.sleep(2 ** attempt)
+    print(f"[{district}] Failed to fetch after 3 attempts")
     return []
 
 def find_last_valid_date(df):
-    """Find the last date with valid (non-missing) data across districts"""
     if df.empty:
         return None
-    
-    # Convert DATE to datetime for comparison, handling both string and numeric formats
     df_temp = df.copy()
-    
-    # Ensure DATE is string first
-    df_temp["DATE"] = df_temp["DATE"].astype(str)
-    
-    # Convert to datetime
-    df_temp["DATE"] = pd.to_datetime(df_temp["DATE"], format="%Y%m%d", errors="coerce")
-    
-    # Remove rows with invalid dates
+    df_temp["DATE"] = pd.to_datetime(df_temp["DATE"].astype(str), format="%Y%m%d", errors="coerce")
     df_temp = df_temp.dropna(subset=["DATE"])
-    
     if df_temp.empty:
         return None
-    
-    # Check each date from most recent to oldest
     dates_sorted = sorted(df_temp["DATE"].unique(), reverse=True)
-    
-    print(f"🔍 Checking {len(dates_sorted)} dates for valid data...")
-    
+    print(f"Checking {len(dates_sorted)} dates for valid data...")
     for date in dates_sorted:
         date_data = df_temp[df_temp["DATE"] == date]
-        
-        # Check if this date has valid data for districts
-        valid_districts = 0
-        total_districts = len(date_data)
-        
-        for _, row in date_data.iterrows():
-            if is_valid_weather_record(row):
-                valid_districts += 1
-        
-        # If at least 70% of districts have valid data for this date, consider it valid
-        if total_districts > 0:
-            valid_percentage = (valid_districts / total_districts) * 100
-            
-            if valid_percentage >= 70:
-                print(f"📅 Last valid date found: {date.strftime('%Y%m%d')} ({valid_districts}/{total_districts} districts = {valid_percentage:.1f}% valid)")
+        total = len(date_data)
+        valid = sum(is_valid_weather_record(row) for _, row in date_data.iterrows())
+        if total > 0:
+            percent = (valid / total) * 100
+            if percent >= 70:
+                print(f"Last valid date: {date.strftime('%Y%m%d')} ({valid}/{total} districts = {percent:.1f}%)")
                 return date
             else:
-                print(f"📊 Date {date.strftime('%Y%m%d')}: {valid_districts}/{total_districts} districts = {valid_percentage:.1f}% valid (below 70% threshold)")
-    
-    print("⚠️ No dates with sufficient valid data found (70% threshold)")
+                print(f"Date {date.strftime('%Y%m%d')}: {valid}/{total} districts = {percent:.1f}% valid (<70%)")
+    print("No sufficient valid data found (70% threshold).")
     return None
 
 def get_existing_data():
-    """Load existing CSV from Supabase with improved error handling"""
     try:
         response = supabase.storage.from_(BUCKET_NAME).download(FILE_PATH)
         df = pd.read_csv(io.BytesIO(response))
-        
-        # Ensure DATE is in string format for consistency
         df["DATE"] = df["DATE"].astype(str)
-        
-        print(f"✅ Loaded {len(df)} existing records")
-        print(f"📊 Districts in data: {df['DISTRICT'].nunique()}")
-        print(f"📊 Date range: {df['DATE'].min()} to {df['DATE'].max()}")
-        
-        # Show sample of data quality
-        sample_row = df.iloc[0] if not df.empty else None
-        if sample_row is not None:
-            valid = is_valid_weather_record(sample_row)
-            print(f"📊 Sample record valid: {valid}")
-        
+        print(f"Loaded {len(df)} records, {df['DISTRICT'].nunique()} districts, dates {df['DATE'].min()} to {df['DATE'].max()}")
         return df
-        
     except Exception as e:
-        print(f"ℹ️ No existing data found or error occurred: {e}")
+        print(f"No existing data or error: {e}")
         return pd.DataFrame()
 
 def upload_to_supabase(df):
-    """Upload CSV to Supabase with improved error handling"""
     if df is None or df.empty:
-        raise ValueError("Invalid DataFrame for upload")
-    
-    # Ensure DATE is in YYYYMMDD string format
+        raise ValueError("Empty DataFrame cannot be uploaded")
     df_copy = df.copy()
     df_copy["DATE"] = df_copy["DATE"].astype(str)
-    
     csv_buffer = io.StringIO()
     df_copy.to_csv(csv_buffer, index=False)
     csv_bytes = csv_buffer.getvalue().encode("utf-8")
-    
     try:
-        # Check if file exists and remove it
         files = supabase.storage.from_(BUCKET_NAME).list()
-        if any(file['name'] == FILE_PATH for file in files):
+        if any(f['name'] == FILE_PATH for f in files):
             supabase.storage.from_(BUCKET_NAME).remove([FILE_PATH])
-            print(f"🗑️ Removed existing file {FILE_PATH}")
-        
-        supabase.storage.from_(BUCKET_NAME).upload(
-            FILE_PATH,
-            csv_bytes,
-            {"content-type": "text/csv"}
-        )
-        print(f"✅ Successfully uploaded {len(df)} records to Supabase")
-        
+            print(f"Removed existing file {FILE_PATH}")
+        supabase.storage.from_(BUCKET_NAME).upload(FILE_PATH, csv_bytes, {"content-type": "text/csv"})
+        print(f"Uploaded {len(df)} records to Supabase")
     except Exception as e:
-        print(f"❌ Failed to upload to Supabase: {e}")
+        print(f"Upload failed: {e}")
         raise
 
 def main():
-    """Main execution function with improved logic for valid data detection"""
-    print(" Starting weather data fetch with valid data detection...")
-    
+    print("Starting weather data fetch...")
     df_existing = get_existing_data()
-    current_date = datetime.now(timezone.utc)
-    
+    now = datetime.now(timezone.utc)
+
     if not df_existing.empty:
-        # Find the last date with valid data
-        last_valid_date = find_last_valid_date(df_existing)
-        
-        if last_valid_date:
-            # Check if we need to update
-            days_since_last_valid = (current_date.date() - last_valid_date.date()).days
-            
-            if days_since_last_valid <= 1:
-                print("📅 Data is up to date with valid records")
+        last_valid = find_last_valid_date(df_existing)
+        if last_valid:
+            days_diff = (now.date() - last_valid.date()).days
+            if days_diff <= 1:
+                print("Data is up to date.")
                 return
-            
-            # Start from the day after the last valid date
-            start_date = (last_valid_date + timedelta(days=1)).strftime("%Y%m%d")
-            print(f"📊 Updating from last valid date: {last_valid_date.strftime('%Y%m%d')}")
+            start_date = (last_valid + timedelta(days=1)).strftime("%Y%m%d")
+            print(f"Updating from last valid date: {start_date}")
         else:
-            # No valid data found, get the latest date and start from there
-            if 'DATE' in df_existing.columns:
-                df_existing['DATE'] = df_existing['DATE'].astype(str)
-                latest_date_str = df_existing['DATE'].max()
-                try:
-                    latest_date = datetime.strptime(latest_date_str, "%Y%m%d")
-                    start_date = (latest_date + timedelta(days=1)).strftime("%Y%m%d")
-                    print(f"⚠️ No valid data found, but continuing from latest date: {latest_date_str}")
-                except:
-                    start_date = "20100101"
-                    print("⚠️ Could not parse latest date, starting from 2010")
-            else:
+            try:
+                latest_str = df_existing["DATE"].max()
+                latest_date = datetime.strptime(latest_str, "%Y%m%d")
+                start_date = (latest_date + timedelta(days=1)).strftime("%Y%m%d")
+                print(f"No valid data found; continuing from latest date: {start_date}")
+            except Exception:
                 start_date = "20100101"
-                print("⚠️ No DATE column found, starting from 2010")
+                print("Could not parse latest date; starting from 20100101")
     else:
-        start_date = "20100101"  # Start from 2010 if no existing data
-        print("📊 No existing data, starting from 2010")
-    
-    end_date = (current_date - timedelta(days=1)).strftime("%Y%m%d")
-    
+        start_date = "20100101"
+        print("No existing data; starting from 20100101")
+
+    end_date = (now - timedelta(days=1)).strftime("%Y%m%d")
+
     if start_date > end_date:
-        print("📅 Data is already up to date")
+        print("Data already up to date.")
         return
-    
-    print(f"📊 Fetching data from {start_date} to {end_date}")
-    
+
+    print(f"Fetching data from {start_date} to {end_date}...")
+
     all_rows = []
-    total_districts = len(districts)
-    successful_fetches = 0
-    
+    total = len(districts)
+    success_count = 0
+
     for i, (district, (lat, lon)) in enumerate(districts.items(), 1):
-        print(f"🌍 [{i}/{total_districts}] Fetching {district}...")
-        
+        print(f"[{i}/{total}] Fetching {district}...")
         try:
-            new_rows = fetch_weather(district, lat, lon, start_date, end_date)
-            if new_rows:
-                all_rows.extend(new_rows)
-                successful_fetches += 1
-            
-            # Rate limiting to be respectful to the API
-            if i < total_districts:
-                time.sleep(1)
-                
+            rows = fetch_weather(district, lat, lon, start_date, end_date)
+            if rows:
+                all_rows.extend(rows)
+                success_count += 1
+            if i < total:
+                time.sleep(1)  # rate limiting
         except Exception as e:
-            print(f"❌ Error processing {district}: {e}")
+            print(f"Error fetching {district}: {e}")
             continue
-    
+
     if not all_rows:
-        print("ℹ️ No new valid data to process")
+        print("No new valid data fetched.")
         return
-    
-    print(f"📊 Processing {len(all_rows)} new valid records from {successful_fetches} districts...")
-    
-    # Create DataFrame with proper formatting
+
+    print(f"Processing {len(all_rows)} new records from {success_count} districts...")
+
     df_new = pd.DataFrame(all_rows)
     df_new["DATE"] = df_new["DATE"].astype(str)
-    
-    # Combine with existing data
+
     if not df_existing.empty:
         df_combined = pd.concat([df_existing, df_new], ignore_index=True)
         df_combined = df_combined.drop_duplicates(subset=["DISTRICT", "DATE"], keep="last")
     else:
         df_combined = df_new
-    
-    # Sort by district and date
+
     df_combined = df_combined.sort_values(["DISTRICT", "DATE"]).reset_index(drop=True)
-    
-    # Final validation - count valid records
-    valid_count = sum(1 for _, row in df_combined.iterrows() if is_valid_weather_record(row))
-    
-    print(f"📊 Final dataset: {len(df_combined)} total records, {valid_count} with valid data ({(valid_count/len(df_combined)*100):.1f}%)")
-    
+
+    valid_count = sum(is_valid_weather_record(row) for _, row in df_combined.iterrows())
+    print(f"Final dataset: {len(df_combined)} records, {valid_count} valid ({valid_count / len(df_combined) * 100:.1f}%)")
+
     upload_to_supabase(df_combined)
-    print(f"✅ Successfully processed and uploaded {len(df_combined)} total records")
+    print("Upload complete.")
 
 if __name__ == "__main__":
     main()
