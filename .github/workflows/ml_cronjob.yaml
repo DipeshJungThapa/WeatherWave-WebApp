@@ -17,14 +17,18 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x' # Use your desired Python version
-
+        python-version: '3.x'
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r ml/requirements.txt
-        pip install pandas scikit-learn joblib # Install necessary libraries
-
+        pip install pandas scikit-learn joblib
+        
+    - name: Set up environment variables
+      run: |
+        echo "${{ secrets.MYSECRET }}" > .env
+        
     - name: Run ML Pipeline
       run: |
         python ml/data/fetchdata.py
