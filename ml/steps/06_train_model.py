@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client
+from supabase import create_client, Client, storage
 import logging
 import sys
 from typing import Optional, Tuple
@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 import joblib
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Removed
 from googleapiclient.errors import HttpError
 
 # Google Drive API imports for service account
@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load environment variables
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')) # Removed
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -36,7 +36,7 @@ TARGET_COLUMN = "Temp_2m_tomorrow"
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 
-# Google Drive service account configuration
+# Google Drive service account configuration - Path is relative to the script
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
 DRIVE_FILE_ID = "1pGwE1lnHU-ZFWilY_ZivSCYFsrQASkZk"
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -119,7 +119,8 @@ def upload_model_to_drive_service_account(model) -> bool:
                 logger.warning("Existing file not found. Creating a new file.")
                 file_metadata = {
                     'name': 'weather_model1.pkl',
-                    'mimeType': 'application/octet-stream'
+                    'mimeType': 'application/octet-stream',
+                     # If you want to put it in a specific folder, add 'parents': ['YOUR_FOLDER_ID']
                 }
                 created = service.files().create(
                     body=file_metadata,
@@ -127,6 +128,9 @@ def upload_model_to_drive_service_account(model) -> bool:
                     fields='id'
                 ).execute()
                 logger.info(f"New model uploaded. File ID: {created.get('id')}")
+                # Update DRIVE_FILE_ID if you create a new file and want subsequent runs to update it
+                # global DRIVE_FILE_ID
+                # DRIVE_FILE_ID = created.get('id')
             else:
                 raise
 
@@ -137,6 +141,12 @@ def upload_model_to_drive_service_account(model) -> bool:
 
 def main():
     logger.info("Starting model training and upload process.")
+
+    # Service account file path is relative to the script
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        logger.error(f"Google Drive service account key file not found at: {SERVICE_ACCOUNT_FILE}")
+        logger.error("Please ensure 'mldriveuploader.json' is in the same directory as the script.")
+        return
 
     supabase = initialize_supabase()
     if not supabase:
@@ -156,7 +166,7 @@ def main():
             logger.error("Model training failed.")
             return
 
-        success = upload_model_to_drive_service_account(model)
+        success = upload_model_to_drive_service_account(model) # No longer need to pass file path explicitly
         if success:
             logger.info("Process completed successfully.")
         else:
