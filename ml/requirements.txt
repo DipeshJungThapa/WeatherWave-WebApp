@@ -3,3 +3,6 @@ scikit-learn
 joblib
 numpy
 jupyter
+supabase
+python-dotenv
+
