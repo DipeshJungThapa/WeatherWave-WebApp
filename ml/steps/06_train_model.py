@@ -103,11 +103,16 @@ def upload_model_to_drive_service_account(model) -> bool:
         joblib.dump(model, model_bytes)
         model_bytes.seek(0)
 
-        media = MediaIoBaseUpload(model_bytes, mimetype='application/octet-stream')
+        media = MediaIoBaseUpload(model_bytes, mimetype='application/octet-stream', resumable=True)
 
         try:
             service.files().get(fileId=DRIVE_FILE_ID).execute()
-            service.files().update(fileId=DRIVE_FILE_ID, media_body=media).execute()
+            request = service.files().update(fileId=DRIVE_FILE_ID, media_body=media)
+            response = None
+            while response is None:
+                status, response = request.next_chunk()
+                if status:
+                    logger.info(f"Upload progress: {int(status.progress() * 100)}%")
             logger.info("Model updated in existing Google Drive file.")
         except HttpError as e:
             if e.resp.status == 404:
