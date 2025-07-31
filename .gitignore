@@ -78,9 +78,6 @@ tempCodeRunnerFile.py
 package-lock.json
 package.json
 
-# Docker
-docker-compose.override.yml
-
 # Environment files
 .env
 .env.local

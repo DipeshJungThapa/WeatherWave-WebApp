@@ -53,7 +53,6 @@ WeatherWave-WebApp/
 │   │   └── 07_predict.py
 │   └── requirements.txt
 ├── docs/                   # Documentation and proposals
-├── docker-compose.yml      # (optional for deployment)
 ├── .gitignore
 └── README.md
 ```
@@ -99,20 +98,7 @@ Our team follows a straightforward branching strategy for organized development:
 
 ## 🚀 Getting Started
 
-### Option 1: 🐳 Docker (Recommended for Teams)
-```bash
-git clone https://github.com/<your-org>/WeatherWave-WebApp.git
-cd WeatherWave-WebApp
-
-# Build and run everything with Docker
-docker-compose up --build
-
-# Access the app:
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-```
-
-### Option 2: 💻 Local Development Setup
+### 💻 Local Development Setup
 
 #### 1. Clone & Setup
 ```bash
