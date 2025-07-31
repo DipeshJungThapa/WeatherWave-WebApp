@@ -1,22 +1,64 @@
 # 🌤️ WeatherWave-WebApp
 
-A progressive weather forecasting app with offline support, user login, live data, and ML-based temperature prediction for Nepal.
+A **Progressive Web App (PWA)** for weather forecasting with full offline support, intelligent caching, and ML-powered predictions for all 75 districts of Nepal.
 
 ---
 
-## 📋 Project Overview
+## 🌟 Key Features
 
-**WeatherWave** is a smart, responsive weather forecasting web app tailored for Nepal. It provides:
-- Real-time current weather (temperature, humidity, wind speed, precipitation)
-- 5-day forecast with daily highs/lows and precipitation probability
-- Air Quality Index (AQI) data (PM2.5, PM10, overall index)
-- ML-based next-day temperature prediction using Random Forest
-- **User authentication (login/logout) with Knox-based security**
-- **Favorite districts management**
-- **PWA support: installable + offline caching capabilities**
-- District selector with dropdown + autocomplete for 62 Nepali districts
-- Severe weather alerts for Nepal (floods, landslides)
-- User preferences (°C/°F toggle, light/dark theme)
+### 📱 **Progressive Web App (PWA)**
+- **🔌 Full Offline Support**: Works completely without internet
+- **📲 Installable**: Add to home screen on mobile/desktop
+- **⚡ Lightning Fast**: Smart caching with 5-minute data freshness
+- **🎨 Native Feel**: Standalone app experience
+
+### 🌤️ **Weather Intelligence**
+- **🌡️ Real-time Weather**: Temperature, humidity, wind, precipitation for 75 districts
+- **📅 5-Day Forecast**: Detailed daily predictions with highs/lows
+- **🏭 Air Quality**: PM2.5, PM10, and overall AQI monitoring
+- **🤖 ML Predictions**: AI-powered next-day temperature forecasting
+- **⚠️ Weather Alerts**: Severe weather notifications for Nepal
+
+### 🔐 **User Experience**
+- **🔑 Secure Authentication**: Knox token-based login system
+- **⭐ Favorites Management**: Save and manage preferred locations
+- **🌓 Theme Support**: Dark/light mode with system preference
+- **📱 Responsive Design**: Optimized for all screen sizes
+- **🔄 Unit Conversion**: Celsius/Fahrenheit toggle
+
+---
+
+## 🚀 Quick Start for PWA Experience
+
+### **For Teammates - Experience Full PWA Features:**
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/DipeshJungThapa/WeatherWave-WebApp.git
+cd WeatherWave-WebApp/frontend
+npm install && npm run dev
+
+# 2. Setup backend (for initial data)
+cd ../backend
+pip install -r requirements.txt
+python manage.py runserver
+
+# 3. Open http://localhost:5173 in browser
+# 4. Create account → Browse districts → Test offline mode!
+```
+
+### **📱 Install as PWA:**
+- **Desktop**: Click install icon in address bar
+- **Mobile**: "Add to Home Screen" from browser menu
+- **Result**: Standalone app experience with offline support
+
+### **🔌 Test Offline Mode:**
+1. **Load some weather data** by visiting different districts
+2. **Disconnect internet** or use DevTools → Network → Offline
+3. **Refresh page** - app still works with cached data!
+4. **See offline indicator** and cached weather information
+
+📖 **Detailed Guide**: [PWA & Offline Setup Guide](./docs/PWA_OFFLINE_GUIDE.md)
 
 ---
 
