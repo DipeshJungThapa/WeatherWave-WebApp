@@ -59,6 +59,7 @@ urlpatterns = router.urls + [
         path('history/', get_weather_history, name='api-history'),
         path('forecast/', get_weather_forecast, name='api-forecast'),
         path('alert/', get_alert, name='api-alert'),
+        path('weather-news/', get_weather_news, name='api-weather-news'),
         path('predict-city/', predict_city, name='api-predict-city'),
         path('predict-geo/', predict_geo, name='api-predict-geo'),
 

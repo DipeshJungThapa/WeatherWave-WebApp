@@ -535,3 +535,59 @@ def get_current_weather_default(request):
         return Response(weather)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_weather_news(request):
+    """
+    Returns weather-related news for Nepal.
+    Since we don't have a real news API, this returns mock data.
+    """
+    from datetime import datetime, timedelta
+    
+    # Mock weather news data for Nepal
+    mock_news = [
+        {
+            "id": 1,
+            "title": "Nepal Weather Update: Monsoon Season Continues",
+            "summary": "Heavy rainfall expected in eastern regions with chances of flooding in low-lying areas. The Department of Hydrology and Meteorology has issued warnings for several districts.",
+            "url": "#",
+            "published_at": datetime.now().isoformat(),
+            "source": "Nepal Weather Service"
+        },
+        {
+            "id": 2,
+            "title": "Air Quality Alert for Kathmandu Valley",
+            "summary": "PM2.5 levels remain elevated due to dust and vehicle emissions. Citizens advised to limit outdoor activities and use masks when going outside.",
+            "url": "#",
+            "published_at": (datetime.now() - timedelta(hours=1)).isoformat(),
+            "source": "Department of Environment"
+        },
+        {
+            "id": 3,
+            "title": "Temperature Records Broken in Terai Region",
+            "summary": "Several districts in the Terai region recorded temperatures above 40°C, breaking previous records. Heat wave warnings issued for affected areas.",
+            "url": "#",
+            "published_at": (datetime.now() - timedelta(hours=2)).isoformat(),
+            "source": "Meteorological Forecasting Division"
+        },
+        {
+            "id": 4,
+            "title": "Flash Flood Warning for Hill Districts",
+            "summary": "Meteorological department warns of possible flash floods in hill districts due to continuous rainfall. Residents near rivers advised to stay alert.",
+            "url": "#",
+            "published_at": (datetime.now() - timedelta(hours=4)).isoformat(),
+            "source": "Department of Hydrology"
+        },
+        {
+            "id": 5,
+            "title": "Drought Conditions in Western Nepal",
+            "summary": "Western districts experiencing below-normal rainfall this season. Agricultural activities may be affected if the pattern continues.",
+            "url": "#",
+            "published_at": (datetime.now() - timedelta(hours=6)).isoformat(),
+            "source": "Nepal Agricultural Research Council"
+        }
+    ]
+    
+    return Response(mock_news)
