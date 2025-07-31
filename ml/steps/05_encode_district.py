@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client
+from supabase import create_client, Client, storage # Import storage explicitly
 import logging
 from datetime import datetime
 import sys
@@ -19,11 +19,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Supabase credentials
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Removed
 import os
 
 # Load variables from ../.env (since you're in ml/steps and .env is in ml/)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')) # Removed
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = "ml-files"
@@ -43,13 +43,13 @@ def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
     """Validate DataFrame structure and required columns"""
     required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow']
     missing_columns = [col for col in required_columns if col not in df.columns]
-    
+
     if missing_columns:
         return False, f"Missing required columns: {', '.join(missing_columns)}"
-    
+
     if df.empty:
         return False, "DataFrame is empty"
-    
+
     # Validate Date format
     try:
         sample_dates = df['Date'].dropna().head(5).tolist()
@@ -58,7 +58,7 @@ def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
         logger.info("Date column format validated as YYYY-MM-DD")
     except ValueError as e:
         return False, f"Invalid date format in 'Date' column: {str(e)}. Expected YYYY-MM-DD."
-    
+
     return True, ""
 
 def encode_district(df: pd.DataFrame) -> Tuple[pd.DataFrame, Optional[LabelEncoder]]:
@@ -91,8 +91,12 @@ def upload_to_supabase(supabase: Client, data: bytes, output_file: str, content_
             if any(file['name'] == output_file for file in files):
                 supabase.storage.from_(BUCKET_NAME).remove([output_file])
                 logger.info(f"Removed existing file: {output_file}")
+        except storage.PostgrestAPIError as e:
+             # Handle specific API errors, e.g., file not found
+             logger.warning(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-            logger.warning(f"Could not check/remove existing file: {str(e)}")
+             # Catch other potential errors during removal
+             logger.warning(f"An unexpected error occurred during file removal: {e}")
 
         # Upload file
         supabase.storage.from_(BUCKET_NAME).upload(
@@ -127,7 +131,12 @@ def encode_district_data() -> bool:
         logger.info(f"Loaded data from Supabase: {INPUT_FILE}")
         logger.info(f"Initial shape: {df.shape}")
         logger.info(f"Columns: {list(df.columns)}")
-        logger.info(f"Sample Date values: {df['Date'].head().tolist()}")
+        # Check if 'Date' column exists before accessing head()
+        if 'Date' in df.columns:
+             logger.info(f"Sample Date values: {df['Date'].head().tolist()}")
+        else:
+             logger.warning("Date column not found in loaded DataFrame.")
+
 
         is_valid, validation_message = validate_dataframe(df)
         if not is_valid:
