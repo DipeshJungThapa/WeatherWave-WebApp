@@ -131,14 +131,14 @@ const NepalWeatherHeatmap = () => {
 
   return (
     <Card className={`mt-8 transition-all duration-300 ${isFullscreen ? 'fixed inset-4 z-50 bg-white' : 'bg-white/30 dark:bg-black/30 backdrop-blur-md'}`}>
-      <CardHeader className="space-y-4">
-        <div className="flex items-center justify-between">
+      <CardHeader className="space-y-4 p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Mountain className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
+              <Mountain className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <CardTitle className="text-2xl text-foreground">
+              <CardTitle className="text-xl sm:text-2xl text-foreground">
                 Nepal Weather Live Map
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
@@ -147,7 +147,7 @@ const NepalWeatherHeatmap = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               variant="ghost"
               size="sm"
@@ -170,26 +170,26 @@ const NepalWeatherHeatmap = () => {
 
         {/* Weather Layer Tabs */}
         <Tabs value={activeLayer} onValueChange={setActiveLayer} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-gray-100 dark:bg-gray-800">
+          <TabsList className="grid w-full grid-cols-5 bg-gray-100 dark:bg-gray-800 h-auto p-1">
             {weatherLayers.map((layer) => {
               const IconComponent = layer.icon;
               return (
                 <TabsTrigger
                   key={layer.id}
                   value={layer.id}
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="flex flex-col items-center justify-center gap-1 py-2 px-1 data-[state=active]:bg-white data-[state=active]:shadow-sm min-h-[60px] text-xs"
                 >
                   <IconComponent className={`w-4 h-4 ${layer.color}`} />
-                  <span className="hidden sm:inline">{layer.name}</span>
+                  <span className="text-center leading-tight">{layer.name}</span>
                 </TabsTrigger>
               );
             })}
           </TabsList>
 
           {/* Active Layer Info */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className={`p-2 ${currentLayer?.bgColor} rounded-lg`}>
+              <div className={`p-2 ${currentLayer?.bgColor} rounded-lg flex-shrink-0`}>
                 <currentLayer.icon className={`w-5 h-5 ${currentLayer?.color}`} />
               </div>
               <div>
@@ -197,7 +197,7 @@ const NepalWeatherHeatmap = () => {
                 <p className="text-sm text-muted-foreground">{currentLayer?.description}</p>
               </div>
             </div>
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 flex-shrink-0">
               <Info className="w-3 h-3" />
               Live Data
             </Badge>
@@ -205,18 +205,18 @@ const NepalWeatherHeatmap = () => {
         </Tabs>
 
         {/* Quick Region Navigation */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <MapPin className="w-4 h-4" />
             Quick Navigation
           </h4>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {nepalRegions.map((region) => (
               <Button
                 key={region.name}
                 variant={currentLocation.name === region.name ? "default" : "outline"}
                 size="sm"
-                className="text-xs transition-all duration-200 hover:scale-105"
+                className="text-xs transition-all duration-200 hover:scale-105 h-9 px-3"
                 onClick={() => handleLocationChange(region)}
                 disabled={isLoading}
               >
@@ -283,17 +283,17 @@ const NepalWeatherHeatmap = () => {
         </div>
 
         {/* Additional Info */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <RefreshCw className="w-4 h-4" />
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+          <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <RefreshCw className="w-4 h-4 flex-shrink-0" />
             <span>Updates every 15 minutes</span>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Mountain className="w-4 h-4" />
+          <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <Mountain className="w-4 h-4 flex-shrink-0" />
             <span>Optimized for Nepal geography</span>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Eye className="w-4 h-4" />
+          <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg sm:col-span-2 lg:col-span-1">
+            <Eye className="w-4 h-4 flex-shrink-0" />
             <span>High-resolution satellite data</span>
           </div>
         </div>
