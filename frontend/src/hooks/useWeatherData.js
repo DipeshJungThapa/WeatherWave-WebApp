@@ -6,7 +6,7 @@ import { useOnlineStatus } from './useOnlineStatus';
 import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 import { cleanExpiredCache } from '../utils/cacheUtils';
 
-const CACHE_DURATION = 5 * 60 * 1000; // Cache data for 5 minutes
+const CACHE_DURATION = 1440 * 5 * 60 * 1000;  
 
 const useWeatherData = (location) => {
     const [weatherData, setWeatherData] = useState(null);
