@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useOnlineStatus } from './useOnlineStatus';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
+import { cleanExpiredCache } from '../utils/cacheUtils';
 
-const CACHE_DURATION = 1140 * 5 * 60 * 1000; // Cache data for 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // Cache data for 5 minutes
 
 const useWeatherData = (location) => {
     const [weatherData, setWeatherData] = useState(null);
@@ -14,6 +17,9 @@ const useWeatherData = (location) => {
     const [error, setError] = useState(null);
     const [geoError, setGeoError] = useState(null);
     const [isOffline, setIsOffline] = useState(false);
+    const [isFromCache, setIsFromCache] = useState(false);
+    
+    const isOnline = useOnlineStatus();
 
     const getLocationKey = useCallback((loc) => {
         if (typeof loc === 'string') return loc;
@@ -22,6 +28,9 @@ const useWeatherData = (location) => {
     }, []); // Memoize getLocationKey
 
     useEffect(() => {
+        // Clean expired cache on mount
+        cleanExpiredCache();
+        
         let locationKey = getLocationKey(location);
         let cachedData = localStorage.getItem(`weatherCache_${locationKey}`);
         let parsedCache = null;
@@ -39,11 +48,12 @@ const useWeatherData = (location) => {
                     setAqiData(parsedCache.aqiData);
                     setForecastData(parsedCache.forecastData);
                     setPredictionData(parsedCache.predictionData);
-                    setIsOffline(true); // Temporarily assume offline if using cache initially
+                    setIsFromCache(true);
+                    setIsOffline(!isOnline); // Set based on actual online status
                     setLoading(false);
                     usedInitialCache = true;
-                    console.log("Using valid cached data for", locationKey);
-                     // We still proceed to fetch online to update the cache
+                    console.log("📖 Using valid cached data for", locationKey);
+                     // We still proceed to fetch online to update the cache if online
                 } else {
                     // Cache expired
                     console.log("Cache expired for", locationKey);
@@ -55,11 +65,31 @@ const useWeatherData = (location) => {
             }
         }
 
+        // If offline, don't attempt to fetch - only use cached data
+        if (!isOnline) {
+            if (usedInitialCache) {
+                console.log("🔌 Offline mode - using cached data for", locationKey);
+                setIsOffline(true);
+                setError(null);
+            } else {
+                // No cached data for this location - clear previous data and show appropriate message
+                console.log("🔌 Offline mode - no cached data for", locationKey);
+                setWeatherData(null);
+                setAqiData(null);
+                setForecastData(null);
+                setPredictionData(null);
+                setIsFromCache(false);
+                setIsOffline(true);
+                setLoading(false);
+                setError("No cached data available for this location while offline.");
+            }
+            return; // Don't proceed with fetch
+        }
+
         const controller = new AbortController(); // To cancel fetch on unmount or location change
         const signal = controller.signal;
 
         const fetchData = async () => {
-
             // If initial cache was used, set loading to false but still fetch in background
             if (!usedInitialCache) {
                  setLoading(true);
@@ -125,7 +155,7 @@ const useWeatherData = (location) => {
 
             try {
                 // Fetch weather data
-                const weatherResponse = await axios.get(`http://localhost:8000/api/current-weather/?${queryParam}`, { signal });
+                const weatherResponse = await axios.get(buildApiUrl(API_ENDPOINTS.CURRENT_WEATHER, queryParam), { signal });
                 setWeatherData(weatherResponse.data);
 
                 // Extract city name from weather data if fetched by coordinates
@@ -134,13 +164,13 @@ const useWeatherData = (location) => {
                 }
 
                 // Fetch forecast data
-                const forecastResponse = await axios.get(`http://localhost:8000/api/forecast/?${queryParam}`, { signal });
+                const forecastResponse = await axios.get(buildApiUrl(API_ENDPOINTS.FORECAST, queryParam), { signal });
                 setForecastData(forecastResponse.data.forecast);
 
                 // Try to fetch AQI data, but don't fail if it's not available
                 let currentAqiData = null;
                 try {
-                    const aqiResponse = await axios.get(`http://localhost:8000/api/aqi/?${queryParam}`, { signal });
+                    const aqiResponse = await axios.get(buildApiUrl(API_ENDPOINTS.AQI, queryParam), { signal });
                     setAqiData(aqiResponse.data);
                     currentAqiData = aqiResponse.data;
                 } catch (aqiError) {
@@ -153,9 +183,7 @@ const useWeatherData = (location) => {
                 let currentPredictionData = null;
                 if (currentCityName) {
                     try {
-                         const predictionResponse = await axios.post(`http://localhost:8000/api/predict-city/`, { city: currentCityName }, { signal });
-                         console.log("Prediction Response Status:", predictionResponse.status); // Log status
-                         console.log("Prediction Response Data:", predictionResponse.data); // Log prediction data
+                         const predictionResponse = await axios.post(buildApiUrl(API_ENDPOINTS.PREDICT_CITY), { city: currentCityName }, { signal });
                          setPredictionData(predictionResponse.data);
                          currentPredictionData = predictionResponse.data;
                     } catch (predictionError) {
@@ -165,17 +193,24 @@ const useWeatherData = (location) => {
                     }
                 }
 
-                // Cache successful data
+                // Cache successful data with optimized structure
                 const dataToCache = {
                     weatherData: weatherResponse.data,
                     aqiData: currentAqiData,
                     forecastData: forecastResponse.data.forecast,
                     predictionData: currentPredictionData,
                     timestamp: new Date().getTime(),
+                    version: 1 // For future cache migrations
                 };
                 try {
-                     localStorage.setItem(`weatherCache_${locationKey}`, JSON.stringify(dataToCache));
+                     // Compress data by removing any null/undefined values
+                     const compressedData = JSON.parse(JSON.stringify(dataToCache, (key, value) => {
+                         return value === null || value === undefined ? undefined : value;
+                     }));
+                     
+                     localStorage.setItem(`weatherCache_${locationKey}`, JSON.stringify(compressedData));
                      setIsOffline(false); // Successfully fetched online
+                     setIsFromCache(false); // This is fresh data
                      setError(null); // Clear any previous errors
                      console.log("Successfully fetched and cached data for", locationKey);
                 } catch (cacheError) {
@@ -243,10 +278,21 @@ const useWeatherData = (location) => {
             controller.abort();
         };
 
-         // Added getLocationKey to dependency array because it's used inside the effect
-    }, [location, getLocationKey]);
+         // Added getLocationKey and isOnline to dependency array
+    }, [location, getLocationKey, isOnline]);
 
-    return { weatherData, aqiData, forecastData, predictionData, loading, error, geoError, isOffline };
+    return { 
+        weatherData, 
+        aqiData, 
+        forecastData, 
+        predictionData, 
+        loading, 
+        error, 
+        geoError, 
+        isOffline, 
+        isFromCache,
+        isOnline 
+    };
 };
 
 export default useWeatherData;

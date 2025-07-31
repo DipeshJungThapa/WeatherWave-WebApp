@@ -1,13 +1,14 @@
 // src/pages/Dashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import useWeatherData from "../hooks/useWeatherData";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import CurrentWeatherCard from "../components/CurrentWeatherCard";
 import AQICard from "../components/AQICard";
 import ForecastCard from "../components/ForecastCard";
 import PredictionCard from "../components/PredictionCard";
 import NepalWeatherHeatmap from "../components/ZoomEarthHeatmap";
 import WeatherNews from "../components/WeatherNews";
-// import WeatherWidgets from "../components/WeatherWidgets";
+import { buildApiUrl, API_ENDPOINTS } from "../config/api";
 
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Skeleton } from "../components/ui/skeleton";
@@ -26,8 +27,13 @@ export default function Dashboard({ currentDistrict, unit }) {
         loading,
         error,
         geoError,
-        isOffline
+        isOffline,
+        isFromCache,
+        isOnline
     } = useWeatherData(currentDistrict);
+
+    // Online status monitoring
+    const isOnlineStatus = useOnlineStatus();
 
     const [isFavorited, setIsFavorited] = useState(false);
     const [currentFavoriteId, setCurrentFavoriteId] = useState(null);
@@ -43,7 +49,7 @@ export default function Dashboard({ currentDistrict, unit }) {
         setAlertsError(null);
         
         try {
-            const response = await fetch(`http://127.0.0.1:8000/api/alert/?city=${encodeURIComponent(city)}`, {
+            const response = await fetch(buildApiUrl(API_ENDPOINTS.ALERTS, `city=${encodeURIComponent(city)}`), {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -90,7 +96,7 @@ export default function Dashboard({ currentDistrict, unit }) {
         }
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/favorites/', {
+            const response = await fetch(buildApiUrl(API_ENDPOINTS.FAVORITES), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -131,7 +137,7 @@ export default function Dashboard({ currentDistrict, unit }) {
 
         if (isFavorited) {
             try {
-                const res = await fetch(`http://127.0.0.1:8000/api/favorites/${currentFavoriteId}/`, {
+                const res = await fetch(buildApiUrl(`${API_ENDPOINTS.FAVORITES}${currentFavoriteId}/`), {
                     method: 'DELETE',
                     headers: { 'Authorization': `Token ${token}` }
                 });
@@ -148,7 +154,7 @@ export default function Dashboard({ currentDistrict, unit }) {
             }
         } else {
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/favorites/', {
+                const res = await fetch(buildApiUrl(API_ENDPOINTS.FAVORITES), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -198,28 +204,19 @@ export default function Dashboard({ currentDistrict, unit }) {
     }
 
      // If loading but offline, we might be loading the cache, show a different message or the existing data
-    if (loading && isOffline) {
+    if (loading && isOffline && !weatherData) {
          return (
              <div className="container mx-auto p-6">
                  <Alert className="mb-6 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                      <WifiOff className="h-4 w-4" />
                      <AlertTitle>Offline Mode</AlertTitle>
-                     <AlertDescription>Attempting to fetch data, showing cached data...</AlertDescription>
+                     <AlertDescription>{error || "No cached data available for this location."}</AlertDescription>
                  </Alert>
-                 {/* Optionally show skeleton or just the old data while attempting to refresh */}
-                 {/* Display existing data if available while trying to refresh */}
-                 {weatherData || aqiData || forecastData || predictionData ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                          {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} />}
-                          {aqiData && <AQICard data={aqiData} />}
-                          {forecastData && <ForecastCard data={forecastData} unit={unit} />}
-                          <PredictionCard data={predictionData} unit={unit} />
-                      </div>
-                 ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-[200px] w-full" />)}
-                      </div>
-                 )}
+                 
+                 {/* Show just the news section when no weather data is available offline */}
+                 <div className="space-y-6">
+                     <WeatherNews />
+                 </div>
              </div>
          );
     }
@@ -238,26 +235,38 @@ export default function Dashboard({ currentDistrict, unit }) {
                 </Alert>
                  {/* Show cached data if available even with geo error */}
                 {isOffline && (weatherData || aqiData || forecastData || predictionData) && (
-                    <>
-                         <Alert className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                             <WifiOff className="h-4 w-4" />
-                             <AlertTitle>Offline Mode</AlertTitle>
-                             <AlertDescription>Showing cached data (offline or network issue).</AlertDescription>
-                         </Alert>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                              {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} />}
-                              {aqiData && <AQICard data={aqiData} />}
-                              {forecastData && <ForecastCard data={forecastData} unit={unit} />}
-                              <PredictionCard data={predictionData} unit={unit} />
-                         </div>
-                    </>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} isOffline={isOffline} isFromCache={isFromCache} />}
+                        {aqiData && <AQICard data={aqiData} />}
+                        {forecastData && <ForecastCard data={forecastData} unit={unit} />}
+                        <PredictionCard data={predictionData} unit={unit} />
+                    </div>
                  )}
             </div>
         );
     }
 
     // If not loading and no geo error, display data or general error
-    if (error && !isOffline && !weatherData && !aqiData && !forecastData && !predictionData) { // Show general error only if no data (cached or new) and not offline mode showing cache
+    if (error && !weatherData && !aqiData && !forecastData && !predictionData) { 
+        // Special handling for offline mode with no cached data
+        if (isOffline) {
+            return (
+                <div className="container mx-auto p-6 space-y-6">
+                    <Alert className="mb-6 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        <WifiOff className="h-4 w-4" />
+                        <AlertTitle>Offline Mode</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                    
+                    {/* Show just the news section when no weather data is available offline */}
+                    <div className="space-y-6">
+                        <WeatherNews />
+                    </div>
+                </div>
+            );
+        }
+        
+        // Regular error handling for online mode
         return (
              <div className="container mx-auto p-6 space-y-6">
                  <Alert variant="destructive" className="mb-4">
@@ -273,6 +282,19 @@ export default function Dashboard({ currentDistrict, unit }) {
     return (
         
         <div className="container mx-auto p-6 space-y-6">
+            {/* Offline/Online Status Banner - only show if we have weather data */}
+            {!isOnlineStatus && weatherData && (
+                <div className="offline-banner bg-amber-50 border-amber-200 border rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                        <WifiOff className="h-5 w-5 text-amber-600" />
+                        <div>
+                            <h3 className="font-medium text-amber-800">🔌 You are offline</h3>
+                            <p className="text-sm text-amber-700">Showing cached data where available.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             {/* Weather Alerts Section */}
             <div className="mb-4">
                 {alertsLoading ? (
@@ -370,7 +392,7 @@ export default function Dashboard({ currentDistrict, unit }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Render cards only if data is available */}
-                    {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} />}
+                    {weatherData && <CurrentWeatherCard data={weatherData} unit={unit} currentCity={currentDistrict} isOffline={isOffline} isFromCache={isFromCache} />}
                     {aqiData && <AQICard data={aqiData} />}
                     {forecastData && <ForecastCard data={forecastData} unit={unit} />}
                     {predictionData && <PredictionCard data={predictionData} unit={unit} />}
@@ -397,15 +419,10 @@ export default function Dashboard({ currentDistrict, unit }) {
                  {!isOffline && <NepalWeatherHeatmap />}
             </div>
 
-            {/* Weather News Section */}
+            {/* Weather News */}
             <div>
                 <WeatherNews />
             </div>
-            
-            {/* Weather Widgets & External Sources - Temporarily Disabled */}
-            {/* <div>
-                <WeatherWidgets />
-            </div> */}
         </div>
     );
 }
