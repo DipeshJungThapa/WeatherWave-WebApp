@@ -22,7 +22,6 @@ Thumbs.db
 
 # ML Specific
 ml/model.pkl # To ignore your trained model file (for the trained model file)
-ml/data/     # To ignore your raw data files (for the data folder)
 
 # Python / Django
 __pycache__/
@@ -36,9 +35,7 @@ venv/
 *.pkl
 *.csv
 
-# Ignore model and data folders
-ml/models/
-ml/data/
+
 
 # Python-specific
 __pycache__/
@@ -49,7 +46,6 @@ __pycache__/
 
 # Node modules
 node_modules/
-package-lock.json # This specifically ignores package-lock.json if it appears outside frontend/
 npm-debug.log*
 yarn-error.log*
 
@@ -65,18 +61,11 @@ __pycache__/
 db.sqlite3
 *.log
 
-# ML specific (as previously discussed)
-ml/data/*.csv
-ml/models/*.pkl
 
 # VS Code specific
 .vscode/
 .history/
 tempCodeRunnerFile.py
-
-# Ignore all package-lock.json and package.json files
-package-lock.json
-package.json
 
 # Environment files
 .env
