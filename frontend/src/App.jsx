@@ -8,6 +8,7 @@ import AuthPageSimple from './pages/AuthPageSimple';
 import ProfilePage from './pages/ProfilePage';
 import FavoriteLocations from './components/FavoriteLocations';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import Navbar from './components/Navbar';
 
 function AppContent() {
@@ -15,6 +16,24 @@ function AppContent() {
     const [currentDistrict, setCurrentDistrict] = useState('Kathmandu'); // Or your default city
     const [unit, setUnit] = useState('Celsius'); // Added unit state
     const navigate = useNavigate(); // <--- INITIALIZE useNavigate HERE
+    const isOnline = useOnlineStatus(); // Global offline status
+
+    // Recover last viewed location from localStorage when offline
+    useEffect(() => {
+        if (!isOnline) {
+            const lastLocation = localStorage.getItem('weatherWave_lastLocation');
+            if (lastLocation && lastLocation !== currentDistrict) {
+                setCurrentDistrict(lastLocation);
+            }
+        }
+    }, [isOnline, currentDistrict]);
+
+    // Save current location when it changes
+    useEffect(() => {
+        if (currentDistrict) {
+            localStorage.setItem('weatherWave_lastLocation', currentDistrict);
+        }
+    }, [currentDistrict]);
 
     // This function is crucial for updating the Dashboard when a favorite is selected
     const handleSelectFavoriteFromList = (cityName) => {

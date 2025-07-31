@@ -153,7 +153,7 @@
   }
   body {
     @apply font-sans text-foreground;
-    background-image: url('background.jpg'); /* **REPLACE WITH YOUR IMAGE URL** */
+    background-image: url('/background.jpg'); /* Background image from public folder */
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

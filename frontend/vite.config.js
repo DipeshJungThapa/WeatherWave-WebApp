@@ -10,14 +10,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['pws-192-192-removebg-preview.png', 'pws-512-512-removebg-preview.png'],
       manifest: {
-        name: 'WeatherWave App',
+        name: 'WeatherWave',
         short_name: 'WeatherWave',
-        description: 'Your Weather Companion – WeatherWave PWA',
         start_url: '/',
         display: 'standalone',
-        background_color: '#1e1e1e',
         theme_color: '#1e90ff',
-        orientation: 'portrait',
+        background_color: '#1e1e1e',
         icons: [
           {
             src: 'pws-192-192-removebg-preview.png',
@@ -30,6 +28,10 @@ export default defineConfig({
             type: 'image/png',
           }
         ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,png,svg}']
+        // Removed navigateFallback/offline.html after it proved unreliable
       }
     })
   ],
