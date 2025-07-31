@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { ListIcon, XCircle } from 'lucide-react'; // Importing icons
 import { Skeleton } from './ui/skeleton'; // For loading state
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 
 const FavoriteLocations = ({ onSelectFavorite, onFavoriteRemoved }) => {
     const { token, isAuthenticated } = useAuth();
@@ -22,7 +23,7 @@ const FavoriteLocations = ({ onSelectFavorite, onFavoriteRemoved }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/favorites/', {
+            const response = await fetch(buildApiUrl(API_ENDPOINTS.FAVORITES), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -61,7 +62,7 @@ const FavoriteLocations = ({ onSelectFavorite, onFavoriteRemoved }) => {
         }
 
         try {
-            const response = await fetch(`http://127.0.0.1:8000/api/favorites/${favoriteId}/`, {
+            const response = await fetch(buildApiUrl(`${API_ENDPOINTS.FAVORITES}${favoriteId}/`), {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Token ${token}`,

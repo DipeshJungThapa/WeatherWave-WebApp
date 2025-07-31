@@ -1,16 +1,10 @@
 // src/components/CurrentWeatherCard.jsx
-import React, { useEffect } from 'react'; // Import useEffect for console.log
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
 import { Thermometer, Droplet, Wind } from 'lucide-react';
+import { OfflineIndicator } from './OfflineIndicator';
 
-export default function CurrentWeatherCard({ data, currentCity, unit }) { // Added unit prop
-  // Add a console log to see what data is being received
-  useEffect(() => {
-    console.log("CurrentWeatherCard received data:", data);
-    console.log("CurrentWeatherCard received currentCity prop:", currentCity);
-    console.log("CurrentWeatherCard received unit prop:", unit);
-  }, [data, currentCity, unit]);
-
+export default function CurrentWeatherCard({ data, currentCity, unit, isOffline, isFromCache }) { // Added offline props
 
   if (!data) {
     return (
@@ -49,7 +43,10 @@ export default function CurrentWeatherCard({ data, currentCity, unit }) { // Add
   return (
     <Card className="hover:shadow-lg transition-shadow flex flex-col justify-between bg-white/30 dark:bg-black/30 backdrop-blur-md">
       <CardHeader>
-        <CardTitle className="text-xl">{displayCity}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl">{displayCity}</CardTitle>
+          <OfflineIndicator isOffline={isOffline} isFromCache={isFromCache} />
+        </div>
         <p className="text-sm text-muted-foreground capitalize">{data.description}</p>
       </CardHeader>
 

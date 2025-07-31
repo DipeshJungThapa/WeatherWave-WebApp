@@ -1,11 +1,12 @@
 // frontend/src/services/authService.js
 import axios from 'axios';
+import { buildApiUrl, API_ENDPOINTS } from '../config/api';
 
 // Define specific URLs for authentication and favorites
-const REGISTER_URL = 'http://127.0.0.1:8000/register/';
-const LOGIN_URL = 'http://127.0.0.1:8000/login/';
-const USERS_URL = 'http://127.0.0.1:8000/users/';
-const FAVORITES_API_URL = 'http://127.0.0.1:8000/api/favorites/';
+const REGISTER_URL = buildApiUrl(API_ENDPOINTS.REGISTER);
+const LOGIN_URL = buildApiUrl(API_ENDPOINTS.LOGIN);
+const USERS_URL = buildApiUrl(API_ENDPOINTS.USERS);
+const FAVORITES_API_URL = buildApiUrl(API_ENDPOINTS.FAVORITES);
 
 // Update register function to use specific URL
 const register = async (userData) => {
