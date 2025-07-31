@@ -19,7 +19,7 @@ const WeatherNews = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Method 1: Curated Nepal Weather News (Always Available)
+  // Local fallback Nepal Weather News (if backend fails)
   const getCuratedNepalWeatherNews = () => {
     const currentSeason = getCurrentSeason();
     const weatherContext = getSeasonalWeatherContext(currentSeason);
@@ -33,95 +33,19 @@ const WeatherNews = () => {
         timestamp: new Date().toLocaleDateString(),
         severity: weatherContext.severity,
         location: "Kathmandu Valley",
-        type: "forecast"
+        type: "forecast",
+        link: "https://www.dhm.gov.np/"
       },
       {
         id: 2,
-        title: "Monsoon Safety Advisory for Hilly Regions",
-        description: "Department of Hydrology and Meteorology advises caution in hill districts due to potential landslides and flash floods.",
+        title: "Weather Safety Advisory for Nepal",
+        description: "Department of Hydrology and Meteorology provides general weather advisories for all regions of Nepal.",
         source: "DHM Nepal",
         timestamp: new Date().toLocaleDateString(),
         severity: "moderate",
-        location: "Mountain Districts",
-        type: "advisory"
-      },
-      {
-        id: 3,
-        title: "Temperature Trends Across Nepal",
-        description: `Average temperatures in the Terai region range from ${weatherContext.tempRange}, while mountain areas experience cooler conditions.`,
-        source: "Nepal Climate Data",
-        timestamp: new Date().toLocaleDateString(),
-        severity: "low",
-        location: "Nationwide",
-        type: "analysis"
-      }
-    ];
-  };
-
-  // Method 2: Kathmandu Post Weather Section Scraper (No API needed)
-  const fetchKathmanduPostWeather = async () => {
-    try {
-      // Using a simple news aggregation approach
-      const weatherNews = [
-        {
-          id: 'kp1',
-          title: "Bhotekoshi Flood Alert for Low-lying Areas",
-          description: "Residents along Trishuli river urged to remain vigilant as water levels rise following increased flow from Tibet.",
-          source: "The Kathmandu Post",
-          timestamp: "Today",
-          severity: "high",
-          location: "Rasuwa, Nuwakot",
-          type: "alert",
-          link: "https://kathmandupost.com/weather"
-        },
-        {
-          id: 'kp2', 
-          title: "Today's Weather Forecast",
-          description: "Generally cloudy conditions expected with possibility of light rain in some areas of the country.",
-          source: "The Kathmandu Post",
-          timestamp: "Today",
-          severity: "low",
-          location: "Nepal",
-          type: "forecast",
-          link: "https://kathmandupost.com/weather"
-        }
-      ];
-      
-      return weatherNews;
-    } catch (error) {
-      console.log('Kathmandu Post method failed, using fallback');
-      return [];
-    }
-  };
-
-  // Method 3: Embeddable Weather Widget Data (No API key)
-  const getMeteoBlueData = () => {
-    return [
-      {
-        id: 'mb1',
-        title: "Heavy Precipitation Expected in Central Nepal",
-        description: "Meteoblue forecasts >20mm precipitation with thunderstorms likely in Kathmandu Valley and surrounding areas.",
-        source: "MeteoBlue Nepal",
-        timestamp: "Updated hourly",
-        severity: "moderate",
-        location: "Bagmati Province", 
-        type: "forecast"
-      }
-    ];
-  };
-
-  // Method 4: Hamro Patro Weather Integration
-  const getHamroPatroWeather = () => {
-    return [
-      {
-        id: 'hp1',
-        title: "Nepali Calendar Weather Update",
-        description: "Current weather conditions suitable for outdoor activities. Traditional weather wisdom suggests monitoring cloud formations.",
-        source: "Hamro Patro Weather",
-        timestamp: "Updated daily",
-        severity: "low",
-        location: "Major Cities",
-        type: "traditional"
+        location: "Nepal",
+        type: "advisory",
+        link: "https://www.dhm.gov.np/"
       }
     ];
   };
@@ -176,38 +100,31 @@ const WeatherNews = () => {
     setError(null);
     
     try {
-      let allNews = [];
+      // Call the backend curated news endpoint
+      const response = await fetch('http://localhost:8000/api/weather-news/');
       
-      // Always include curated news (Method 1)
-      allNews = [...getCuratedNepalWeatherNews()];
-      
-      // Try to fetch from external sources
-      try {
-        const kpNews = await fetchKathmanduPostWeather();
-        allNews = [...allNews, ...kpNews];
-      } catch (e) {
-        console.log('KP source unavailable');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Add widget-based data (Method 3)
-      allNews = [...allNews, ...getMeteoBlueData()];
+      const data = await response.json();
       
-      // Add traditional source (Method 4) 
-      allNews = [...allNews, ...getHamroPatroWeather()];
-      
-      // Sort by severity and timestamp
-      allNews.sort((a, b) => {
-        const severityOrder = { 'high': 3, 'moderate': 2, 'low': 1 };
-        return severityOrder[b.severity] - severityOrder[a.severity];
-      });
-      
-      setNewsItems(allNews);
-      setCurrentMethod('hybrid');
+      if (data && data.length > 0) {
+        setNewsItems(data);
+        setCurrentMethod('curated');
+      } else {
+        // Fallback to local content if backend returns empty
+        setNewsItems(getCuratedNepalWeatherNews());
+        setCurrentMethod('local');
+      }
       
     } catch (error) {
-      console.error('Error fetching weather news:', error);
-      setError('Unable to load weather news. Showing cached content.');
+      console.error('Error fetching weather news from backend:', error);
+      setError('Unable to load latest news. Showing local content.');
+      
+      // Fallback to local news on error
       setNewsItems(getCuratedNepalWeatherNews());
+      setCurrentMethod('local');
     } finally {
       setLoading(false);
     }
@@ -259,7 +176,7 @@ const WeatherNews = () => {
           </motion.button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Latest weather updates and forecasts for Nepal
+          Latest weather news and updates for Nepal
         </p>
       </CardHeader>
 
