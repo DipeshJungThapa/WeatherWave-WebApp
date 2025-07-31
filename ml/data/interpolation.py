@@ -1,12 +1,9 @@
 import io
 import pandas as pd
-from supabase import create_client
+from supabase import create_client, storage # Import storage explicitly for potential error handling
 import numpy as np
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Removed
 import os
-
-# Load variables from ../.env (since you're in ml/steps and .env is in ml/)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Supabase credentials (use environment variables in production)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -14,6 +11,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = "ml-files"
 INPUT_FILE_PATH = "raw_data_processed.csv"
 OUTPUT_FILE_PATH = "raw_data_interpolated.csv"
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise EnvironmentError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables.")
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -42,6 +42,8 @@ def check_file_exists():
         return True
     except Exception as e:
         print(f"Failed to list files in bucket: {e}")
+        # Depending on your error handling strategy, you might want to raise the exception
+        # raise
         return False
 
 def load_csv_from_supabase():
@@ -63,7 +65,10 @@ def load_csv_from_supabase():
 
     except Exception as e:
         print(f"Failed to load CSV: {e}")
+        # Depending on your error handling strategy, you might want to raise the exception
+        # raise
         return None
+
 
 def upload_csv_to_supabase(df):
     if not validate_dataframe(df, ['Date', 'District']):
@@ -74,13 +79,19 @@ def upload_csv_to_supabase(df):
         df.to_csv(csv_buffer, index=False)
         csv_bytes = csv_buffer.getvalue().encode("utf-8")
 
+        # Refined error handling for file removal
         try:
             files = supabase.storage.from_(BUCKET_NAME).list()
             if any(file['name'] == OUTPUT_FILE_PATH for file in files):
                 supabase.storage.from_(BUCKET_NAME).remove([OUTPUT_FILE_PATH])
                 print(f"Removed existing file {OUTPUT_FILE_PATH}")
-        except:
-            pass
+        except storage.PostgrestAPIError as e:
+             # Handle specific API errors, e.g., file not found
+             print(f"Error removing existing file (might not exist): {e}")
+        except Exception as e:
+             # Catch other potential errors during removal
+             print(f"An unexpected error occurred during file removal: {e}")
+
 
         supabase.storage.from_(BUCKET_NAME).upload(
             OUTPUT_FILE_PATH,
@@ -91,7 +102,9 @@ def upload_csv_to_supabase(df):
 
     except Exception as e:
         print(f"Failed to upload CSV: {e}")
-        raise
+        # Depending on your error handling strategy, you might want to raise the exception
+        # raise
+
 
 def interpolate_missing_values(group, numeric_cols):
     district_name = group['District'].iloc[0]
@@ -240,3 +253,4 @@ def interpolate_data():
 
 if __name__ == "__main__":
     interpolate_data()
+
