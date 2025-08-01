@@ -1,8 +1,7 @@
 import io
 import pandas as pd
-from supabase import create_client, storage # Import storage explicitly
+from supabase import create_client # Removed 'storage' from this import
 import numpy as np
-# from dotenv import load_dotenv # Removed
 import os
 
 # Supabase credentials from environment variables (set in GitHub Actions secrets)
@@ -106,8 +105,6 @@ def load_csv_from_supabase():
 
     except Exception as e:
         print(f"❌ Failed to load CSV: {e}")
-        # Depending on your error handling strategy, you might want to raise the exception
-        # raise
         return None
 
 def upload_csv_to_supabase(df):
@@ -126,13 +123,9 @@ def upload_csv_to_supabase(df):
             if any(file['name'] == OUTPUT_FILE_PATH for file in files):
                 supabase.storage.from_(BUCKET_NAME).remove([OUTPUT_FILE_PATH])
                 print(f" Removed existing file {OUTPUT_FILE_PATH}")
-        except storage.PostgrestAPIError as e:
-             # Handle specific API errors, e.g., file not found
-             print(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-             # Catch other potential errors during removal
-             print(f"An unexpected error occurred during file removal: {e}")
-
+            # Catch all potential errors during removal, e.g., file not found
+            print(f"Error removing existing file (might not exist): {e}")
 
         response = supabase.storage.from_(BUCKET_NAME).upload(
             OUTPUT_FILE_PATH,
@@ -146,7 +139,6 @@ def upload_csv_to_supabase(df):
         print(f" Failed to upload CSV: {e}")
         # Depending on your error handling strategy, you might want to raise the exception
         # raise
-
 
 def process_data():
     """Process raw weather data maintaining YYYYMMDD date format"""
