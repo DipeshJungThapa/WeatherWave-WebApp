@@ -7,8 +7,9 @@ from typing import Optional, Tuple
 import joblib
 import os
 import argparse
+import json
+import base64
 from sklearn.preprocessing import LabelEncoder
-# from dotenv import load_dotenv # Removed
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -21,9 +22,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
-
-# Load environment variables (adjust path as needed)
-# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')) # Removed
 
 # Constants and config
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -41,10 +39,44 @@ MODEL_FEATURES = [
     'District_encoded'
 ]
 
-# Google Drive config - Path is relative to the script
-SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
-
+# Google Drive config
+SERVICE_ACCOUNT_INFO = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")  # From GitHub Secret
 DRIVE_MODEL_FILE_ID = "1pGwE1lnHU-ZFWilY_ZivSCYFsrQASkZk"
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+def get_drive_service():
+    """Initialize Google Drive service with proper error handling"""
+    try:
+        if SERVICE_ACCOUNT_INFO:
+            # If using GitHub Secrets (JSON string)
+            try:
+                # Try to decode if it's base64 encoded
+                decoded_info = base64.b64decode(SERVICE_ACCOUNT_INFO).decode('utf-8')
+                service_account_info = json.loads(decoded_info)
+            except:
+                # If not base64, treat as plain JSON string
+                service_account_info = json.loads(SERVICE_ACCOUNT_INFO)
+            
+            creds = service_account.Credentials.from_service_account_info(
+                service_account_info, scopes=SCOPES
+            )
+            logger.info("Using Google Drive credentials from environment variable")
+        else:
+            # Fallback to file-based authentication
+            service_account_file = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
+            if not os.path.exists(service_account_file):
+                raise FileNotFoundError(f"Service account file not found: {service_account_file}")
+            
+            creds = service_account.Credentials.from_service_account_file(
+                service_account_file, scopes=SCOPES
+            )
+            logger.info("Using Google Drive credentials from local file")
+        
+        service = build('drive', 'v3', credentials=creds)
+        return service
+    except Exception as e:
+        logger.error(f"Failed to initialize Google Drive service: {str(e)}")
+        return None
 
 def initialize_supabase() -> Optional[Client]:
     try:
@@ -56,7 +88,7 @@ def initialize_supabase() -> Optional[Client]:
         return None
 
 def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
-    required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow', 'District_encoded'] + [col for col in MODEL_FEATURES if col != 'District_encoded'] # Adjust required columns check
+    required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow', 'District_encoded'] + [col for col in MODEL_FEATURES if col != 'District_encoded']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         return False, f"Missing required columns: {', '.join(missing_columns)}"
@@ -124,7 +156,6 @@ def make_predictions(df: pd.DataFrame, model, label_encoder: LabelEncoder) -> pd
         else:
             logger.warning("'District_encoded' column not found, skipping Kathmandu prediction display.")
 
-
         return df
     except Exception as e:
         logger.error(f"Error making predictions: {str(e)}")
@@ -141,7 +172,6 @@ def upload_to_supabase(supabase: Client, data: bytes, output_file: str, content_
              # Handle API errors, e.g., file not found
              logger.warning(f"Error removing existing file (might not exist): {e}")
 
-
         supabase.storage.from_(BUCKET_NAME).upload(output_file, data, {"content-type": content_type})
         logger.info(f"Successfully uploaded {output_file}")
         return True
@@ -149,21 +179,23 @@ def upload_to_supabase(supabase: Client, data: bytes, output_file: str, content_
         logger.error(f"Upload error for {output_file}: {str(e)}")
         return False
 
-def download_model_from_drive(service_account_file: str, file_id: str) -> Optional[io.BytesIO]:
+def download_model_from_drive() -> Optional[io.BytesIO]:
     try:
-        credentials = service_account.Credentials.from_service_account_file(
-            service_account_file,
-            scopes=['https://www.googleapis.com/auth/drive.readonly']
-        )
-        service = build('drive', 'v3', credentials=credentials)
-        request = service.files().get_media(fileId=file_id)
+        service = get_drive_service()
+        if not service:
+            logger.error("Failed to initialize Google Drive service")
+            return None
+
+        logger.info("Starting model download from Google Drive")
+        request = service.files().get_media(fileId=DRIVE_MODEL_FILE_ID)
         file_buffer = io.BytesIO()
         downloader = MediaIoBaseDownload(file_buffer, request)
 
         done = False
         while not done:
             status, done = downloader.next_chunk()
-            logger.info(f"Downloading model from Drive: {int(status.progress() * 100)}%")
+            if status:
+                logger.info(f"Downloading model from Drive: {int(status.progress() * 100)}%")
 
         file_buffer.seek(0)
         logger.info("Model download from Drive completed.")
@@ -175,20 +207,28 @@ def download_model_from_drive(service_account_file: str, file_id: str) -> Option
 def predict_weather() -> bool:
     logger.info("Starting prediction process")
 
-    # Check if the service account file exists (if not using GitHub Secret method)
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        logger.error(f"Google Drive service account key file not found at: {SERVICE_ACCOUNT_FILE}")
-        logger.error("Please ensure 'mldriveuploader.json' is in the same directory as the script.")
-        return False
-
+    # Check authentication method
+    if not SERVICE_ACCOUNT_INFO:
+        service_account_file = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
+        if not os.path.exists(service_account_file):
+            logger.error("No Google Drive authentication found!")
+            logger.error("Either set GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
+            logger.error("or ensure 'mldriveuploader.json' is in the same directory as the script.")
+            return False
+        else:
+            logger.info("Using local service account file for authentication")
+    else:
+        logger.info("Using environment variable for Google Drive authentication")
 
     supabase = initialize_supabase()
     if not supabase:
+        logger.error("Failed to initialize Supabase client")
         return False
 
     try:
         # Download model file from Google Drive
-        model_file_bytes = download_model_from_drive(SERVICE_ACCOUNT_FILE, DRIVE_MODEL_FILE_ID)
+        logger.info("Downloading model from Google Drive")
+        model_file_bytes = download_model_from_drive()
         if model_file_bytes is None:
             logger.error("Failed to download model file from Google Drive.")
             return False
@@ -197,10 +237,15 @@ def predict_weather() -> bool:
         model = joblib.load(model_file_bytes)
         logger.info("Model loaded successfully from Google Drive.")
 
+        # Load label encoder
+        logger.info("Loading label encoder from Supabase")
         label_encoder = load_label_encoder(supabase)
         if label_encoder is None:
+            logger.error("Failed to load label encoder")
             return False
 
+        # Load input data
+        logger.info(f"Downloading {INPUT_FILE} from Supabase")
         response = supabase.storage.from_(BUCKET_NAME).download(INPUT_FILE)
         if not response:
             logger.error(f"Could not fetch {INPUT_FILE} from Supabase bucket")
@@ -210,21 +255,30 @@ def predict_weather() -> bool:
         logger.info(f"Loaded data from Supabase: {INPUT_FILE}")
         logger.info(f"Data shape: {df.shape}")
 
+        # Validate data
         valid, msg = validate_dataframe(df)
         if not valid:
-            logger.error(msg)
+            logger.error(f"Data validation failed: {msg}")
             return False
 
+        # Make predictions
+        logger.info("Starting prediction process")
         df_pred = make_predictions(df, model, label_encoder)
         if df_pred.empty:
             logger.error("Prediction failed")
             return False
 
+        # Save predictions
+        logger.info("Saving predictions to Supabase")
         csv_buffer = io.StringIO()
         df_pred.to_csv(csv_buffer, index=False, date_format='%Y-%m-%d')
         csv_bytes = csv_buffer.getvalue().encode("utf-8")
 
-        return upload_to_supabase(supabase, csv_bytes, OUTPUT_FILE, "text/csv")
+        success = upload_to_supabase(supabase, csv_bytes, OUTPUT_FILE, "text/csv")
+        if success:
+            logger.info(f"Predictions successfully saved to {OUTPUT_FILE}")
+        return success
+
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         return False
@@ -232,7 +286,6 @@ def predict_weather() -> bool:
         logger.info("Finished prediction process")
 
 if __name__ == "__main__":
-
     success = predict_weather()
     if success:
         logger.info("Script completed successfully!")
