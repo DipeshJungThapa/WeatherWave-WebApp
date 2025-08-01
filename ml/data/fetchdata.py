@@ -262,7 +262,7 @@ def upload_to_supabase(df):
         if any(file['name'] == FILE_PATH for file in files):
             supabase.storage.from_(BUCKET_NAME).remove([FILE_PATH])
             print(f"🗑️ Removed existing file {FILE_PATH}")
-        
+            
         supabase.storage.from_(BUCKET_NAME).upload(
             FILE_PATH,
             csv_bytes,
@@ -274,51 +274,49 @@ def upload_to_supabase(df):
         print(f"❌ Failed to upload to Supabase: {e}")
         raise
 
+def get_start_date(df_existing):
+    """Determine the start date for fetching new data based on existing data."""
+    # If no existing data, start from the beginning
+    if df_existing.empty:
+        print("📊 No existing data, starting from 2010")
+        return "20100101"
+
+    last_valid_date = find_last_valid_date(df_existing)
+
+    if last_valid_date:
+        days_since_last_valid = (datetime.now(timezone.utc).date() - last_valid_date.date()).days
+        if days_since_last_valid <= 1:
+            print("📅 Data is up to date with valid records.")
+            return None # Indicate no fetch needed
+        print(f"📊 Updating from last valid date: {last_valid_date.strftime('%Y%m%d')}")
+        return (last_valid_date + timedelta(days=1)).strftime("%Y%m%d")
+    else:
+        # Fallback to the latest date if no valid date is found
+        if 'DATE' in df_existing.columns:
+            df_existing['DATE'] = df_existing['DATE'].astype(str)
+            try:
+                latest_date_str = df_existing['DATE'].max()
+                latest_date = datetime.strptime(latest_date_str, "%Y%m%d")
+                print(f"⚠️ No valid data found, but continuing from latest date: {latest_date_str}")
+                return (latest_date + timedelta(days=1)).strftime("%Y%m%d")
+            except (ValueError, TypeError):
+                print("⚠️ Could not parse latest date, starting from 2010.")
+                return "20100101"
+        else:
+            print("⚠️ No DATE column found, starting from 2010")
+            return "20100101"
+
 def main():
     """Main execution function with improved logic for valid data detection"""
     print("🌤️ Starting weather data fetch with valid data detection...")
     
     df_existing = get_existing_data()
-    current_date = datetime.now(timezone.utc)
     
-    if not df_existing.empty:
-        # Find the last date with valid data
-        last_valid_date = find_last_valid_date(df_existing)
-        
-        if last_valid_date:
-            # Check if we need to update
-            days_since_last_valid = (current_date.date() - last_valid_date.date()).days
-            
-            if days_since_last_valid <= 1:
-                print("📅 Data is up to date with valid records")
-                return
-            
-            # Start from the day after the last valid date
-            start_date = (last_valid_date + timedelta(days=1)).strftime("%Y%m%d")
-            print(f"📊 Updating from last valid date: {last_valid_date.strftime('%Y%m%d')}")
-        else:
-            # No valid data found, get the latest date and start from there
-            if 'DATE' in df_existing.columns:
-                df_existing['DATE'] = df_existing['DATE'].astype(str)
-                latest_date_str = df_existing['DATE'].max()
-                try:
-                    latest_date = datetime.strptime(latest_date_str, "%Y%m%d")
-                    start_date = (latest_date + timedelta(days=1)).strftime("%Y%m%d")
-                    print(f"⚠️ No valid data found, but continuing from latest date: {latest_date_str}")
-                except:
-                    start_date = "20100101"
-                    print("⚠️ Could not parse latest date, starting from 2010")
-            else:
-                start_date = "20100101"
-                print("⚠️ No DATE column found, starting from 2010")
-    else:
-        start_date = "20100101"  # Start from 2010 if no existing data
-        print("📊 No existing data, starting from 2010")
-    
-    end_date = (current_date - timedelta(days=1)).strftime("%Y%m%d")
-    
-    if start_date > end_date:
-        print("📅 Data is already up to date")
+    start_date = get_start_date(df_existing)
+    end_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Ym%d")
+
+    if not start_date or start_date > end_date:
+        print("📅 Data is already up to date or no start date determined.")
         return
     
     print(f"📊 Fetching data from {start_date} to {end_date}")
