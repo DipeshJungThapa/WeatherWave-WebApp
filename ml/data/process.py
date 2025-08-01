@@ -1,254 +1,143 @@
 import io
 import pandas as pd
-from supabase import create_client # Removed 'storage' from this import
+from supabase import create_client
 import numpy as np
 import os
 
-# Supabase credentials from environment variables (set in GitHub Actions secrets)
+# --- Configuration ---
+# Supabase credentials from environment variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = "ml-files"
 INPUT_FILE_PATH = "raw_data.csv"
 OUTPUT_FILE_PATH = "raw_data_processed.csv"
 
+# Invalid values from NASA POWER API
+INVALID_VALUES = [-999, 999, -999.0, 999.0]
+
+# --- Validation and Setup ---
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise EnvironmentError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables.")
+    raise EnvironmentError("❌ SUPABASE_URL and SUPABASE_KEY must be set in environment variables.")
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Invalid values that indicate missing/bad data (matching fetchdata.py)
-INVALID_VALUES = [-999, 999, -999.0, 999.0]
-
 def validate_dataframe(df, required_columns=None):
-    """Validate DataFrame structure and content"""
+    """Checks if a DataFrame is valid and has the required columns."""
     if df is None or df.empty:
+        print("❌ Validation failed: DataFrame is empty.")
         return False
 
     if required_columns:
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
-            print(f"❌ Missing required columns: {missing_cols}")
+            print(f"❌ Validation failed: Missing required columns: {missing_cols}")
             return False
-
     return True
 
-def is_valid_value(value):
-    """Check if a value is valid (not missing, not invalid, not empty)"""
-    if pd.isna(value) or value == '' or value is None:
-        return False
-
-    if value in INVALID_VALUES:
-        return False
-
-    try:
-        float_val = float(value)
-        return not (np.isinf(float_val) or np.isnan(float_val))
-    except (ValueError, TypeError):
-        return False
-
+# --- Data Processing Functions ---
 def clean_weather_data(df):
-    """Clean weather data by handling invalid values and empty cells"""
-    print(" Cleaning weather data...")
-
-    # Identify weather parameter columns (exclude metadata columns)
+    """Cleans weather data by handling invalid values and converting types."""
+    print("🧹 Cleaning weather data...")
+    
+    # Identify weather parameter columns (i.e., not metadata)
     metadata_cols = ['Date', 'District', 'Latitude', 'Longitude']
     weather_cols = [col for col in df.columns if col not in metadata_cols]
 
-    cleaned_count = 0
-
     for col in weather_cols:
-        if col in df.columns:
-            original_invalid = df[col].isna().sum()
+        # Convert to numeric, forcing errors to become NaN (missing)
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+        # Replace known invalid markers and infinity with NaN
+        df[col] = df[col].replace(INVALID_VALUES + [np.inf, -np.inf], np.nan)
 
-            # Handle different types of invalid data
-            # 1. Replace explicit invalid values with NaN
-            df[col] = df[col].replace(INVALID_VALUES, np.nan)
+    # Assume missing precipitation is zero
+    if 'Precip' in df.columns:
+        precip_missing = df['Precip'].isna().sum()
+        if precip_missing > 0:
+            df['Precip'] = df['Precip'].fillna(0)
+            print(f"   • Precip: Set {precip_missing} missing values to 0.")
 
-            # 2. Handle empty strings and whitespace
-            df[col] = df[col].replace(['', ' ', '  '], np.nan)
-
-            # 3. Convert to numeric, coercing errors to NaN
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-            # 4. Handle infinite values
-            df[col] = df[col].replace([np.inf, -np.inf], np.nan)
-
-            # Special handling for precipitation - set invalid/missing to 0
-            if col == 'Precip':
-                df[col] = df[col].fillna(0)
-                print(f"   • {col}: Set missing values to 0 (no precipitation)")
-            else:
-                new_invalid = df[col].isna().sum()
-                if new_invalid != original_invalid:
-                    print(f"   • {col}: {new_invalid - original_invalid} additional invalid values found")
-                    cleaned_count += 1
-
-    print(f" Cleaned {cleaned_count} weather parameter columns")
+    print("✅ Cleaning complete.")
     return df
 
+# --- Supabase Interaction ---
 def load_csv_from_supabase():
-    """Load CSV from Supabase with improved error handling"""
+    """Loads the raw CSV data from the Supabase bucket."""
+    print(f"⬇️  Downloading '{INPUT_FILE_PATH}' from bucket '{BUCKET_NAME}'...")
     try:
         data = supabase.storage.from_(BUCKET_NAME).download(INPUT_FILE_PATH)
         df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
-
-        if not validate_dataframe(df):
-            print(" Invalid DataFrame loaded")
-            return None
-
-        print(f" CSV loaded from Supabase. Shape: {df.shape}")
-        print(f" Sample DATE values: {df['DATE'].head().tolist()}")
-        print(f"Columns: {list(df.columns)}")
-
+        print(f"✅ Successfully loaded {len(df)} records.")
         return df
-
     except Exception as e:
-        print(f"❌ Failed to load CSV: {e}")
+        print(f"❌ Failed to load CSV from Supabase. The file might not exist yet. Error: {e}")
         return None
 
 def upload_csv_to_supabase(df):
-    """Upload CSV to Supabase with improved error handling"""
+    """Uploads the processed DataFrame as a CSV to Supabase, overwriting if it exists."""
+    print(f"⬆️  Uploading '{OUTPUT_FILE_PATH}' to bucket '{BUCKET_NAME}'...")
     if not validate_dataframe(df, ['Date', 'District']):
-        raise ValueError("Invalid DataFrame for upload")
+        raise ValueError("Cannot upload invalid DataFrame.")
 
     try:
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
         csv_bytes = csv_buffer.getvalue().encode("utf-8")
 
-        # Remove existing file if it exists
-        try:
-            files = supabase.storage.from_(BUCKET_NAME).list()
-            if any(file['name'] == OUTPUT_FILE_PATH for file in files):
-                supabase.storage.from_(BUCKET_NAME).remove([OUTPUT_FILE_PATH])
-                print(f" Removed existing file {OUTPUT_FILE_PATH}")
-        except Exception as e:
-            # Catch all potential errors during removal, e.g., file not found
-            print(f"Error removing existing file (might not exist): {e}")
-
-        response = supabase.storage.from_(BUCKET_NAME).upload(
+        # Use "upsert: true" to automatically overwrite the file if it exists
+        supabase.storage.from_(BUCKET_NAME).upload(
             OUTPUT_FILE_PATH,
             csv_bytes,
-            {"content-type": "text/csv"}
+            {"content-type": "text/csv", "x-upsert": "true"}
         )
-
-        print(f" Successfully uploaded {len(df)} records to Supabase")
-
+        print(f"✅ Successfully uploaded {len(df)} processed records.")
     except Exception as e:
-        print(f" Failed to upload CSV: {e}")
-        # Depending on your error handling strategy, you might want to raise the exception
-        # raise
+        print(f"❌ Failed to upload CSV to Supabase. Error: {e}")
+        raise
 
+# --- Main Execution Logic ---
 def process_data():
-    """Process raw weather data maintaining YYYYMMDD date format"""
-    print(" Starting data processing...")
+    """Main function to run the data processing pipeline."""
+    print("\n--- 🚀 Starting Data Processing Step ---")
 
-    # Load data from Supabase
     df = load_csv_from_supabase()
     if df is None:
-        print(" No data loaded, exiting")
+        print("🔴 No data loaded, exiting processing step.")
         return
 
-    print(f" Processing {len(df)} records")
-
-    # Validate that required columns exist
-    required_cols = ['DATE', 'DISTRICT']
-    missing_required = [col for col in required_cols if col not in df.columns]
-    if missing_required:
-        print(f" Missing required columns: {missing_required}")
-        return
-
-    # Ensure DATE is string format for consistency (matching fetchdata.py approach)
-    df['DATE'] = df['DATE'].astype(str)
-
-    # Validate date format
-    sample_date = df['DATE'].iloc[0]
-    if len(sample_date) != 8:
-        print(f" Warning: DATE format might not be YYYYMMDD. Sample: {sample_date}")
-    else:
-        print(f" DATE format validated: YYYYMMDD (sample: {sample_date})")
-
-    # Column renaming with validation
+    # Standardize column names for readability and consistency
     rename_map = {
-        "DATE": "Date",
-        "DISTRICT": "District",
-        "LAT": "Latitude",
-        "LON": "Longitude",
-        "PRECTOT": "Precip",
-        "PS": "Pressure",
-        "QV2M": "Humidity_2m",
-        "RH2M": "RH_2m",
-        "T2M": "Temp_2m",
-        "T2MWET": "WetBulbTemp_2m",
-        "T2M_MAX": "MaxTemp_2m",
-        "T2M_MIN": "MinTemp_2m",
-        "TS": "EarthSkinTemp",
-        "WS10M": "WindSpeed_10m",
-        "WS10M_MAX": "MaxWindSpeed_10m",
-        "WS10M_MIN": "MinWindSpeed_10m",
-        "WS50M": "WindSpeed_50m",
-        "WS50M_MAX": "MaxWindSpeed_50m",
-        "WS50M_MIN": "MinWindSpeed_50m"
+        "DATE": "Date", "DISTRICT": "District", "LAT": "Latitude", "LON": "Longitude",
+        "PRECTOT": "Precip", "PS": "Pressure", "QV2M": "SpecificHumidity", "RH2M": "RelativeHumidity",
+        "T2M": "Temp", "T2MWET": "WetBulbTemp", "T2M_MAX": "MaxTemp", "T2M_MIN": "MinTemp",
+        "TS": "EarthSkinTemp", "WS10M": "WindSpeed10m", "WS10M_MAX": "MaxWindSpeed10m",
+        "WS10M_MIN": "MinWindSpeed10m", "WS50M": "WindSpeed50m", "WS50M_MAX": "MaxWindSpeed50m",
+        "WS50M_MIN": "MinWindSpeed50m"
     }
+    df = df.rename(columns=rename_map)
+    print("ℹ️  Renamed columns for readability.")
 
-    # Only rename columns that exist
-    existing_columns = {old: new for old, new in rename_map.items() if old in df.columns}
-    df = df.rename(columns=existing_columns)
-
-    print(f" Renamed {len(existing_columns)} columns")
-
-    # Clean weather data (handle invalid values, empty cells, etc.)
+    # Clean the data
     df = clean_weather_data(df)
 
-    # Data quality assessment
-    print("\n Data Quality Summary:")
-    print(f"   • Total records: {len(df)}")
-    print(f"   • Districts: {df['District'].nunique() if 'District' in df.columns else 'N/A'}")
-    print(f"   • Date range: {df['Date'].min()} to {df['Date'].max()}")
-    print(f"   • Date format: YYYYMMDD (kept as strings)")
-
-    # Count valid records per key parameter
-    key_params = ['Temp_2m', 'RH_2m', 'Pressure']
-    for param in key_params:
-        if param in df.columns:
-            valid_count = df[param].notna().sum()
-            valid_pct = (valid_count / len(df)) * 100
-            print(f"   • {param}: {valid_count}/{len(df)} valid ({valid_pct:.1f}%)")
-
-    # Check for missing values
-    missing_summary = df.isnull().sum()
-    if missing_summary.any():
-        print("\n Missing values detected:")
-        for col, count in missing_summary[missing_summary > 0].items():
-            pct = (count / len(df)) * 100
-            print(f"   • {col}: {count} missing values ({pct:.1f}%)")
-
     # Remove rows where all weather parameters are missing
-    weather_cols = [col for col in df.columns if col not in ['Date', 'District', 'Latitude', 'Longitude']]
     initial_count = len(df)
-    df = df.dropna(subset=weather_cols, how='all')
+    weather_cols = [col for col in df.columns if col not in ['Date', 'District', 'Latitude', 'Longitude']]
+    df.dropna(subset=weather_cols, how='all', inplace=True)
     removed_count = initial_count - len(df)
-
     if removed_count > 0:
-        print(f" Removed {removed_count} rows with no valid weather data")
-
-    # Validate final data
-    if not validate_dataframe(df, ['Date', 'District']):
-        print(" Final validation failed")
-        return
+        print(f"ℹ️  Removed {removed_count} rows with no weather data.")
 
     if df.empty:
-        print(" No data remaining after processing")
+        print("🔴 No valid data remaining after cleaning. Exiting.")
         return
 
-    # Sort data for consistency
+    # Sort data for consistency before saving
     df = df.sort_values(['District', 'Date']).reset_index(drop=True)
 
-    # Upload the result to Supabase
+    # Upload the final, processed data
     upload_csv_to_supabase(df)
-    print(f" Processing complete. Data saved as: {OUTPUT_FILE_PATH}")
-    print(f"Final dataset: {len(df)} records across {df['District'].nunique()} districts")
+    print("\n--- ✅ Data Processing Step Complete ---")
 
 if __name__ == "__main__":
     process_data()
