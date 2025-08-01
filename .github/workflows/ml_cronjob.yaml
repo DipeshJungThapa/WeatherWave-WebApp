@@ -25,10 +25,12 @@ jobs:
         pip install -r ml/requirements.txt
         pip install python-dotenv pandas scikit-learn joblib
         
+    # Remove the old "Set up environment variables" step completely.
+    
     - name: Run ML Pipeline
-      # This block is crucial.
-      # It takes your GitHub Secrets and sets them as environment variables
-      # that your script can access.
+      # This env block is crucial for passing the secrets.
+      # It takes your GitHub Secrets (named SUPABASE_URL and SUPABASE_KEY)
+      # and makes them available as environment variables to this step.
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
