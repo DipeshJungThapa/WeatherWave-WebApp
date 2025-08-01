@@ -115,13 +115,26 @@ def upload_to_supabase(supabase: Client, df: pd.DataFrame, output_file: str) -> 
             # Catch other potential errors during removal (e.g., file not found, permission error)
             logger.warning(f"Error removing existing file (might not exist): {e}")
 
-        # Upload file
-        supabase.storage.from_(BUCKET_NAME).upload(
-            output_file,
-            csv_bytes,
-            {"content-type": "text/csv"}
-        )
-        logger.info(f"Successfully uploaded filtered data to: {output_file}")
+        # Upload file with upsert option
+        try:
+            supabase.storage.from_(BUCKET_NAME).upload(
+                output_file,
+                csv_bytes,
+                {"content-type": "text/csv", "upsert": "true"}
+            )
+            logger.info(f"Successfully uploaded filtered data to: {output_file}")
+        except Exception as upload_error:
+            # If upload fails due to duplicate, try updating instead
+            if "already exists" in str(upload_error).lower() or "duplicate" in str(upload_error).lower():
+                logger.info(f"File exists, attempting to update: {output_file}")
+                supabase.storage.from_(BUCKET_NAME).update(
+                    output_file,
+                    csv_bytes,
+                    {"content-type": "text/csv"}
+                )
+                logger.info(f"Successfully updated existing file: {output_file}")
+            else:
+                raise upload_error
 
         if 'Date' in df.columns:
             logger.info(f"Date column dtype in output: {df['Date'].dtype}")

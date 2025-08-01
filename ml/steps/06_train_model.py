@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client, storage
+from supabase import create_client, Client
 import logging
 import sys
 from typing import Optional, Tuple

@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client, storage # Import storage explicitly
+from supabase import create_client, Client
 import logging
 import sys
 from typing import Optional, Tuple
@@ -137,12 +137,9 @@ def upload_to_supabase(supabase: Client, data: bytes, output_file: str, content_
             if any(f['name'] == output_file for f in files):
                 supabase.storage.from_(BUCKET_NAME).remove([output_file])
                 logger.info(f"Removed existing file: {output_file}")
-        except storage.PostgrestAPIError as e:
-             # Handle specific API errors, e.g., file not found
-             logger.warning(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-             # Catch other potential errors during removal
-             logger.warning(f"An unexpected error occurred during file removal: {e}")
+             # Handle API errors, e.g., file not found
+             logger.warning(f"Error removing existing file (might not exist): {e}")
 
 
         supabase.storage.from_(BUCKET_NAME).upload(output_file, data, {"content-type": content_type})
