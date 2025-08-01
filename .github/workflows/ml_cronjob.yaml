@@ -25,11 +25,11 @@ jobs:
         pip install -r ml/requirements.txt
         pip install python-dotenv pandas scikit-learn joblib
         
-    - name: Set up environment variables
-      run: |
-        echo "${{ secrets.MYSECRET }}" > .env
-        
     - name: Run ML Pipeline
+      # This block passes the secrets as environment variables
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       run: |
         python ml/data/fetchdata.py
         python ml/data/process.py
