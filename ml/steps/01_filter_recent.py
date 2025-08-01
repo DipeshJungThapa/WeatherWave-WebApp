@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client
+from supabase import create_client, Client, storage # Import storage explicitly
 import logging
 from datetime import datetime
 import sys
@@ -17,11 +17,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Supabase credentials
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Removed
 import os
 
 # Load variables from ../.env (since you're in ml/steps and .env is in ml/)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')) # Removed
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = "ml-files"
@@ -40,13 +40,13 @@ def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
     """Validate DataFrame structure and required columns"""
     required_columns = ['Date', 'District']
     missing_columns = [col for col in required_columns if col not in df.columns]
-    
+
     if missing_columns:
         return False, f"Missing required columns: {', '.join(missing_columns)}"
-    
+
     if df.empty:
         return False, "DataFrame is empty"
-    
+
     return True, ""
 
 def convert_dates(df: pd.DataFrame) -> Tuple[pd.DataFrame, bool]:
@@ -54,14 +54,14 @@ def convert_dates(df: pd.DataFrame) -> Tuple[pd.DataFrame, bool]:
     try:
         df['Date'] = df['Date'].astype(str)
         df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d', errors='coerce')
-        
+
         initial_count = len(df)
         df = df.dropna(subset=['Date'])
         success = len(df) > 0
-        
+
         if initial_count > len(df):
             logger.warning(f"Removed {initial_count - len(df)} rows with invalid dates")
-        
+
         return df, success
     except Exception as e:
         logger.error(f"Date conversion error: {str(e)}")
@@ -96,8 +96,13 @@ def upload_to_supabase(supabase: Client, df: pd.DataFrame, output_file: str) -> 
             if any(file['name'] == output_file for file in files):
                 supabase.storage.from_(BUCKET_NAME).remove([output_file])
                 logger.info(f"Removed existing file: {output_file}")
+        except storage.PostgrestAPIError as e:
+             # Handle specific API errors, e.g., file not found
+             logger.warning(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-            logger.warning(f"Could not check/remove existing file: {str(e)}")
+             # Catch other potential errors during removal
+             logger.warning(f"An unexpected error occurred during file removal: {e}")
+
 
         # Upload file
         supabase.storage.from_(BUCKET_NAME).upload(
@@ -106,7 +111,12 @@ def upload_to_supabase(supabase: Client, df: pd.DataFrame, output_file: str) -> 
             {"content-type": "text/csv"}
         )
         logger.info(f"Successfully uploaded filtered data to: {output_file}")
-        logger.info(f"Date column dtype in output: {df['Date'].dtype}")
+        # Check dtype before potentially accessing .dtype
+        if 'Date' in df.columns:
+            logger.info(f"Date column dtype in output: {df['Date'].dtype}")
+        else:
+            logger.warning("Date column not found in DataFrame after filtering.")
+
         return True
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
@@ -133,7 +143,12 @@ def filter_recent_data() -> bool:
         logger.info(f"Loaded data from Supabase: {INPUT_FILE}")
         logger.info(f"Initial shape: {df.shape}")
         logger.info(f"Columns: {list(df.columns)}")
-        logger.info(f"Sample Date values: {df['Date'].head().tolist()}")
+        # Check if 'Date' column exists before accessing head()
+        if 'Date' in df.columns:
+             logger.info(f"Sample Date values: {df['Date'].head().tolist()}")
+        else:
+             logger.warning("Date column not found in loaded DataFrame.")
+
 
         is_valid, validation_message = validate_dataframe(df)
         if not is_valid:
@@ -149,10 +164,18 @@ def filter_recent_data() -> bool:
         # Filter date range
         df_filtered = filter_date_range(df)
         logger.info(f"Filtered shape: {df_filtered.shape}")
-        
+
         if not df_filtered.empty:
-            logger.info(f"Districts in filtered data: {df_filtered['District'].nunique()}")
-            logger.info(f"Date range in filtered data: {df_filtered['Date'].min().date()} to {df_filtered['Date'].max().date()}")
+            # Check if 'District' and 'Date' columns exist before accessing them
+            if 'District' in df_filtered.columns:
+                logger.info(f"Districts in filtered data: {df_filtered['District'].nunique()}")
+            else:
+                logger.warning("District column not found in filtered DataFrame.")
+            if 'Date' in df_filtered.columns:
+                 logger.info(f"Date range in filtered data: {df_filtered['Date'].min().date()} to {df_filtered['Date'].max().date()}")
+            else:
+                 logger.warning("Date column not found in filtered DataFrame.")
+
         else:
             logger.warning("No data in the specified date range")
 

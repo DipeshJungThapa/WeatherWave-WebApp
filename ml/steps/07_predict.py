@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from supabase import create_client, Client
+from supabase import create_client, Client, storage # Import storage explicitly
 import logging
 import sys
 from typing import Optional, Tuple
@@ -8,7 +8,7 @@ import joblib
 import os
 import argparse
 from sklearn.preprocessing import LabelEncoder
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Removed
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load environment variables (adjust path as needed)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')) # Removed
 
 # Constants and config
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -41,10 +41,10 @@ MODEL_FEATURES = [
     'District_encoded'
 ]
 
-# Google Drive config - update these
+# Google Drive config - Path is relative to the script
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'mldriveuploader.json')
 
-DRIVE_MODEL_FILE_ID = "1pGwE1lnHU-ZFWilY_ZivSCYFsrQASkZk"  
+DRIVE_MODEL_FILE_ID = "1pGwE1lnHU-ZFWilY_ZivSCYFsrQASkZk"
 
 def initialize_supabase() -> Optional[Client]:
     try:
@@ -56,7 +56,7 @@ def initialize_supabase() -> Optional[Client]:
         return None
 
 def validate_dataframe(df: pd.DataFrame) -> Tuple[bool, str]:
-    required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow', 'District_encoded'] + MODEL_FEATURES[:-1]
+    required_columns = ['Date', 'District', 'Temp_2m', 'Temp_2m_tomorrow', 'District_encoded'] + [col for col in MODEL_FEATURES if col != 'District_encoded'] # Adjust required columns check
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         return False, f"Missing required columns: {', '.join(missing_columns)}"
@@ -92,25 +92,38 @@ def make_predictions(df: pd.DataFrame, model, label_encoder: LabelEncoder) -> pd
             df = df.dropna(subset=['Date'])
             logger.warning(f"Dropped {dropped} rows with invalid dates.")
 
-        X = df[MODEL_FEATURES]
+        # Ensure all MODEL_FEATURES exist before selecting
+        missing_features = [col for col in MODEL_FEATURES if col not in df.columns]
+        if missing_features:
+            logger.error(f"Missing features for prediction: {', '.join(missing_features)}")
+            return pd.DataFrame()
+
+        X = df[MODEL_FEATURES].astype('float32')
         predictions = model.predict(X)
         df['predicted_Temp_2m_tomorrow'] = predictions
         logger.info(f"Batch predictions completed for {len(df)} samples")
 
         # Show latest Kathmandu prediction (encoded value = 35)
         kathmandu_encoded_val = 35
-        kathmandu_rows = df[df['District_encoded'] == kathmandu_encoded_val]
-        if kathmandu_rows.empty:
-            logger.warning("No Kathmandu data found for latest prediction display.")
+        if 'District_encoded' in df.columns:
+            kathmandu_rows = df[df['District_encoded'] == kathmandu_encoded_val]
+            if kathmandu_rows.empty:
+                logger.warning("No Kathmandu data found for latest prediction display.")
+            else:
+                latest_date = kathmandu_rows['Date'].max()
+                latest_pred = kathmandu_rows[kathmandu_rows['Date'] == latest_date]
+                cols_to_show = ['Date', 'District', 'Temp_2m_tomorrow', 'predicted_Temp_2m_tomorrow']
+                # Check if columns exist before trying to select them
+                cols_to_show = [col for col in cols_to_show if col in latest_pred.columns]
+                if cols_to_show:
+                     logger.info("\n--- Latest Kathmandu Prediction ---")
+                     logger.info(latest_pred[cols_to_show].to_string(index=False))
+                     logger.info("--- End of Kathmandu Prediction ---")
+                else:
+                     logger.warning("Required columns for Kathmandu prediction display not found.")
         else:
-            latest_date = kathmandu_rows['Date'].max()
-            latest_pred = kathmandu_rows[kathmandu_rows['Date'] == latest_date]
-            cols_to_show = ['Date', 'District', 'Temp_2m_tomorrow', 'predicted_Temp_2m_tomorrow']
-            if 'District' not in latest_pred.columns:
-                cols_to_show.remove('District')
-            logger.info("\n--- Latest Kathmandu Prediction ---")
-            logger.info(latest_pred[cols_to_show].to_string(index=False))
-            logger.info("--- End of Kathmandu Prediction ---")
+            logger.warning("'District_encoded' column not found, skipping Kathmandu prediction display.")
+
 
         return df
     except Exception as e:
@@ -124,8 +137,13 @@ def upload_to_supabase(supabase: Client, data: bytes, output_file: str, content_
             if any(f['name'] == output_file for f in files):
                 supabase.storage.from_(BUCKET_NAME).remove([output_file])
                 logger.info(f"Removed existing file: {output_file}")
+        except storage.PostgrestAPIError as e:
+             # Handle specific API errors, e.g., file not found
+             logger.warning(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-            logger.warning(f"Could not check/remove existing file: {str(e)}")
+             # Catch other potential errors during removal
+             logger.warning(f"An unexpected error occurred during file removal: {e}")
+
 
         supabase.storage.from_(BUCKET_NAME).upload(output_file, data, {"content-type": content_type})
         logger.info(f"Successfully uploaded {output_file}")
@@ -159,6 +177,13 @@ def download_model_from_drive(service_account_file: str, file_id: str) -> Option
 
 def predict_weather() -> bool:
     logger.info("Starting prediction process")
+
+    # Check if the service account file exists (if not using GitHub Secret method)
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        logger.error(f"Google Drive service account key file not found at: {SERVICE_ACCOUNT_FILE}")
+        logger.error("Please ensure 'mldriveuploader.json' is in the same directory as the script.")
+        return False
+
 
     supabase = initialize_supabase()
     if not supabase:
