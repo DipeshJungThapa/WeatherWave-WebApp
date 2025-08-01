@@ -313,7 +313,8 @@ def main():
     df_existing = get_existing_data()
     
     start_date = get_start_date(df_existing)
-    end_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Ym%d")
+    # Fix: Correct the format string from "%Ym%d" to "%Y%m%d"
+    end_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
 
     if not start_date or start_date > end_date:
         print("📅 Data is already up to date or no start date determined.")
