@@ -1,8 +1,7 @@
 import io
 import pandas as pd
-from supabase import create_client, storage # Import storage explicitly for potential error handling
+from supabase import create_client # Corrected import, 'storage' is not a top-level module
 import numpy as np
-# from dotenv import load_dotenv # Removed
 import os
 
 # Supabase credentials (use environment variables in production)
@@ -85,13 +84,9 @@ def upload_csv_to_supabase(df):
             if any(file['name'] == OUTPUT_FILE_PATH for file in files):
                 supabase.storage.from_(BUCKET_NAME).remove([OUTPUT_FILE_PATH])
                 print(f"Removed existing file {OUTPUT_FILE_PATH}")
-        except storage.PostgrestAPIError as e:
-             # Handle specific API errors, e.g., file not found
-             print(f"Error removing existing file (might not exist): {e}")
         except Exception as e:
-             # Catch other potential errors during removal
-             print(f"An unexpected error occurred during file removal: {e}")
-
+            # Catch all potential errors during removal, e.g., file not found
+            print(f"Error removing existing file (might not exist): {e}")
 
         supabase.storage.from_(BUCKET_NAME).upload(
             OUTPUT_FILE_PATH,
@@ -253,4 +248,3 @@ def interpolate_data():
 
 if __name__ == "__main__":
     interpolate_data()
-
