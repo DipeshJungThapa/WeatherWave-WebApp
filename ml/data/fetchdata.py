@@ -11,9 +11,9 @@ from dotenv import load_dotenv
 # Try multiple locations for .env file
 # This is crucial for local development and is robust for GitHub Actions
 env_paths = [
-    '.env',  # Root directory (for GitHub Actions)
-    os.path.join(os.path.dirname(__file__), '..', '.env'),  # ml/.env (local development)
-    os.path.join(os.path.dirname(__file__), '..', '..', '.env')  # Root from ml/data/
+    '.env',  # Root directory (for GitHub Actions)
+    os.path.join(os.path.dirname(__file__), '..', '.env'),  # ml/.env (local development)
+    os.path.join(os.path.dirname(__file__), '..', '..', '.env')  # Root from ml/data/
 ]
 
 for path in env_paths:
@@ -23,7 +23,7 @@ for path in env_paths:
         break
 else:
     print("⚠️ No .env file found, trying system environment variables")
-    load_dotenv()  # This will load from system environment if available
+    load_dotenv()  # This will load from system environment if available
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -106,7 +106,7 @@ def is_valid_weather_record(row):
                 try:
                     # Try to convert to float to ensure it's a valid number
                     float_val = float(value)
-                    if not np.isinf(float_val):  # Check for infinity
+                    if not np.isinf(float_val):  # Check for infinity
                         valid_count += 1
                 except (ValueError, TypeError):
                     continue
@@ -164,7 +164,7 @@ def fetch_weather(district, lat, lon, start, end):
         except requests.exceptions.RequestException as e:
             print(f"❌ Error fetching {district} (attempt {attempt + 1}/3): {e}")
             if attempt < 2:
-                time.sleep(2 ** attempt)  # Exponential backoff
+                time.sleep(2 ** attempt)  # Exponential backoff
     
     print(f"❌ Failed to fetch {district} after 3 attempts")
     return []
@@ -299,3 +299,78 @@ def main():
         else:
             # No valid data found, get the latest date and start from there
             if 'DATE' in df_existing.columns:
+                df_existing['DATE'] = df_existing['DATE'].astype(str)
+                latest_date_str = df_existing['DATE'].max()
+                try:
+                    latest_date = datetime.strptime(latest_date_str, "%Y%m%d")
+                    start_date = (latest_date + timedelta(days=1)).strftime("%Y%m%d")
+                    print(f"⚠️ No valid data found, but continuing from latest date: {latest_date_str}")
+                except:
+                    start_date = "20100101"
+                    print("⚠️ Could not parse latest date, starting from 2010")
+            else:
+                start_date = "20100101"
+                print("⚠️ No DATE column found, starting from 2010")
+    else:
+        start_date = "20100101"  # Start from 2010 if no existing data
+        print("📊 No existing data, starting from 2010")
+    
+    end_date = (current_date - timedelta(days=1)).strftime("%Y%m%d")
+    
+    if start_date > end_date:
+        print("📅 Data is already up to date")
+        return
+    
+    print(f"📊 Fetching data from {start_date} to {end_date}")
+    
+    all_rows = []
+    total_districts = len(districts)
+    successful_fetches = 0
+    
+    for i, (district, (lat, lon)) in enumerate(districts.items(), 1):
+        print(f"🌍 [{i}/{total_districts}] Fetching {district}...")
+        
+        try:
+            new_rows = fetch_weather(district, lat, lon, start_date, end_date)
+            if new_rows:
+                all_rows.extend(new_rows)
+                successful_fetches += 1
+            
+            # Rate limiting to be respectful to the API
+            if i < total_districts:
+                time.sleep(1)
+                
+        except Exception as e:
+            print(f"❌ Error processing {district}: {e}")
+            continue
+    
+    if not all_rows:
+        print("ℹ️ No new valid data to process")
+        return
+    
+    print(f"📊 Processing {len(all_rows)} new valid records from {successful_fetches} districts...")
+    
+    # Create DataFrame with proper formatting
+    df_new = pd.DataFrame(all_rows)
+    df_new["DATE"] = df_new["DATE"].astype(str)
+    
+    # Combine with existing data
+    if not df_existing.empty:
+        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+        df_combined = df_combined.drop_duplicates(subset=["DISTRICT", "DATE"], keep="last")
+    else:
+        df_combined = df_new
+    
+    # Sort by district and date
+    df_combined = df_combined.sort_values(["DISTRICT", "DATE"]).reset_index(drop=True)
+    
+    # Final validation - count valid records
+    valid_count = sum(1 for _, row in df_combined.iterrows() if is_valid_weather_record(row))
+    
+    print(f"📊 Final dataset: {len(df_combined)} total records, {valid_count} with valid data ({(valid_count/len(df_combined)*100):.1f}%)")
+    
+    upload_to_supabase(df_combined)
+    print(f"✅ Successfully processed and uploaded {len(df_combined)} total records")
+
+if __name__ == "__main__":
+    main()
