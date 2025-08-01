@@ -10,10 +10,34 @@ import numpy as np
 # Supabase credentials (use environment variables in production)
 from dotenv import load_dotenv
 
-# Load variables from ../.env (since you're in ml/steps and .env is in ml/)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
-SUPABASE_URL = os.getenv("SUPABASE_URL" )
+# Try multiple locations for .env file
+env_paths = [
+    '.env',  # Root directory (for GitHub Actions)
+    os.path.join(os.path.dirname(__file__), '..', '.env'),  # ml/.env (local development)
+    os.path.join(os.path.dirname(__file__), '..', '..', '.env')  # Root from ml/data/
+]
+
+for path in env_paths:
+    if os.path.exists(path):
+        load_dotenv(dotenv_path=path)
+        print(f"✅ Loaded environment variables from: {path}")
+        break
+else:
+    print("⚠️ No .env file found, trying system environment variables")
+    load_dotenv()  # This will load from system environment if available
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Check if required environment variables are loaded
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print(f"❌ Missing environment variables:")
+    print(f"SUPABASE_URL: {'✅' if SUPABASE_URL else '❌'}")
+    print(f"SUPABASE_KEY: {'✅' if SUPABASE_KEY else '❌'}")
+    raise EnvironmentError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables.")
+
+print("✅ All required environment variables loaded successfully")
+
 BUCKET_NAME = "ml-files"
 FILE_PATH = "raw_data.csv"
 
@@ -253,7 +277,7 @@ def upload_to_supabase(df):
 
 def main():
     """Main execution function with improved logic for valid data detection"""
-    print(" Starting weather data fetch with valid data detection...")
+    print("🌤️ Starting weather data fetch with valid data detection...")
     
     df_existing = get_existing_data()
     current_date = datetime.now(timezone.utc)
