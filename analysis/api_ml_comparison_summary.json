@@ -1,0 +1,36 @@
+{
+  "experiment_date": "2025-12-16T22:53:01.854230",
+  "test_set_size": 24187,
+  "ml_metrics": {
+    "mae": 0.42468673254227474,
+    "rmse": 0.697983164875472,
+    "r2": 0.9933175452038853
+  },
+  "api_strategies": {
+    "Persistence (Tomorrow = Today)": {
+      "mae": 0.6700611898953984,
+      "rmse": 0.9114488853331834,
+      "r2": 0.9886050933808898
+    },
+    "Climatology (Monthly Average)": {
+      "mae": 1.3813758750822382,
+      "rmse": 1.8220426264003189,
+      "r2": 0.9544631274448376
+    },
+    "Linear Trend (Extrapolation)": {
+      "mae": 4.156374498697647,
+      "rmse": 4.528873760204227,
+      "r2": 0.7186631863212914
+    }
+  },
+  "best_api_strategy": "Persistence (Tomorrow = Today)",
+  "improvement": {
+    "mae_improvement_percent": 36.61970892411012,
+    "rmse_improvement_percent": 23.420481816671295,
+    "ml_mae": 0.42468673254227474,
+    "api_mae": 0.6700611898953984,
+    "ml_rmse": 0.697983164875472,
+    "api_rmse": 0.9114488853331834
+  },
+  "execution_time_seconds": 11.325279712677002
+}

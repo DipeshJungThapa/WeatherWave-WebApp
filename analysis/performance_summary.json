@@ -1,0 +1,79 @@
+{
+  "overall": {
+    "mae": 0.42240798409507485,
+    "rmse": 0.6946952626240674,
+    "r2": 0.9933803533345162,
+    "training_time": 2.8160579204559326,
+    "train_samples": 96744,
+    "test_samples": 24187
+  },
+  "regional": {
+    "Samples": {
+      "Hill": 13341,
+      "Terai": 6389,
+      "Mountain": 4457
+    },
+    "MAE (\u00b0C)": {
+      "Hill": 0.2914,
+      "Terai": 0.5805,
+      "Mountain": 0.5878
+    },
+    "Std Dev": {
+      "Hill": 0.4367,
+      "Terai": 0.6222,
+      "Mountain": 0.6408
+    }
+  },
+  "top_10_best": {
+    "Samples": {
+      "Parbat": 372,
+      "Okhaldhunga": 326,
+      "Ramechhap": 357,
+      "Syangja": 354,
+      "Sindhuli": 339,
+      "Kaski": 351,
+      "Palpa": 350,
+      "Dolakha": 356,
+      "Rasuwa": 106,
+      "Dadeldhura": 87
+    },
+    "MAE (\u00b0C)": {
+      "Parbat": 0.1033,
+      "Okhaldhunga": 0.1052,
+      "Ramechhap": 0.1091,
+      "Syangja": 0.1165,
+      "Sindhuli": 0.1229,
+      "Kaski": 0.1262,
+      "Palpa": 0.1301,
+      "Dolakha": 0.1464,
+      "Rasuwa": 0.1628,
+      "Dadeldhura": 0.1686
+    }
+  },
+  "bottom_10_worst": {
+    "Samples": {
+      "Humla": 367,
+      "Darchula": 371,
+      "Kailali": 108,
+      "Mahottari": 347,
+      "Banke": 377,
+      "Kanchanpur": 370,
+      "Kapilvastu": 354,
+      "Mugu": 364,
+      "Dang": 366,
+      "Bardiya": 105
+    },
+    "MAE (\u00b0C)": {
+      "Humla": 0.9329,
+      "Darchula": 0.9167,
+      "Kailali": 0.861,
+      "Mahottari": 0.8447,
+      "Banke": 0.8318,
+      "Kanchanpur": 0.8084,
+      "Kapilvastu": 0.7834,
+      "Mugu": 0.7765,
+      "Dang": 0.7711,
+      "Bardiya": 0.7679
+    }
+  }
+}

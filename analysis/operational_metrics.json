@@ -1,0 +1,301 @@
+{
+  "timestamp": "2025-12-17T11:42:57.240903",
+  "analysis_type": "static_code_based",
+  "system_specs": {
+    "os": "Linux",
+    "os_version": "6.17.8-300.fc43.x86_64",
+    "architecture": "x86_64",
+    "cpu_count_physical": 10,
+    "cpu_count_logical": 12,
+    "cpu_freq_mhz": 2285.8098333333337,
+    "ram_total_gb": 7.45,
+    "python_version": "3.14.0"
+  },
+  "api_call_analysis": {
+    "per_location_load": {
+      "description": "User loads weather for one location",
+      "external_apis": {
+        "OpenWeather - Current Weather": {
+          "endpoint": "/api/current-weather/",
+          "external_call": "api.openweathermap.org/data/2.5/weather",
+          "count": 1
+        },
+        "OpenWeather - 5-Day Forecast": {
+          "endpoint": "/api/forecast/",
+          "external_call": "api.openweathermap.org/data/2.5/forecast",
+          "count": 1
+        },
+        "WeatherAPI - AQI": {
+          "endpoint": "/api/aqi/",
+          "external_call": "api.weatherapi.com/v1/current.json",
+          "count": 1
+        },
+        "Supabase - ML Prediction": {
+          "endpoint": "/api/predict-city/",
+          "external_call": "Supabase Storage (predictions.csv)",
+          "count": 1,
+          "note": "Downloads ~50KB CSV file"
+        }
+      },
+      "total_external_calls": 4,
+      "total_backend_calls": 4
+    },
+    "with_caching": {
+      "description": "With 5-minute LocalStorage cache",
+      "cache_hit_rate": "80%",
+      "effective_api_calls": 0.8,
+      "note": "Cache reduces external API calls by ~80% for repeat visits"
+    }
+  },
+  "latency_estimates": {
+    "openweather_api": {
+      "typical_latency_ms": "100-300",
+      "source": "OpenWeather API documentation",
+      "note": "Depends on geographic proximity to API servers"
+    },
+    "weatherapi_com": {
+      "typical_latency_ms": "150-400",
+      "source": "WeatherAPI documentation",
+      "note": "Variable based on location and load"
+    },
+    "supabase_storage": {
+      "typical_latency_ms": "50-200",
+      "source": "Supabase documentation",
+      "note": "File download from CDN"
+    },
+    "django_backend_processing": {
+      "typical_latency_ms": "10-50",
+      "source": "Django REST Framework benchmarks",
+      "note": "JSON serialization and response formatting"
+    },
+    "ml_model_inference": {
+      "typical_latency_ms": "5-20",
+      "source": "RandomForest prediction with 5 trees",
+      "note": "CSV lookup only (pre-computed predictions)"
+    },
+    "estimated_total_dashboard_load": {
+      "optimistic_ms": 700,
+      "realistic_ms": 1500,
+      "pessimistic_ms": 3000,
+      "note": "Parallel API calls reduce total time vs sequential"
+    }
+  },
+  "cost_analysis": {
+    "pricing_model": {
+      "OpenWeather": {
+        "free_tier": "1,000 calls/day (60,000/month)",
+        "threshold": 60000,
+        "overage_cost_per_call": 0.0004,
+        "notes": "Free tier sufficient for <1000 daily users"
+      },
+      "WeatherAPI": {
+        "free_tier": "1,000,000 calls/month",
+        "threshold": 1000000,
+        "next_tier_cost": 4.0,
+        "notes": "Free tier sufficient for <16k daily users"
+      },
+      "Supabase": {
+        "free_tier": "500MB storage, 2GB transfer/month",
+        "storage_threshold_gb": 0.5,
+        "transfer_threshold_gb": 2,
+        "paid_tier_cost": 25.0,
+        "notes": "predictions.csv ~50KB, requires paid tier at ~40k requests/month"
+      },
+      "NewsAPI": {
+        "cost": 0,
+        "notes": "Using free RSS feeds instead of NewsAPI"
+      }
+    },
+    "assumptions": {
+      "requests_per_user_day": 2.5,
+      "cache_hit_rate": "80%",
+      "days_per_month": 30,
+      "api_calls_per_request": 4
+    },
+    "scenarios": {
+      "10_users": {
+        "monthly_user_requests": 750,
+        "actual_api_calls": 149,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 299,
+          "weatherapi": 149,
+          "supabase": 149
+        },
+        "data_transfer": {
+          "supabase_gb": 0.007
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      },
+      "30_users": {
+        "monthly_user_requests": 2250,
+        "actual_api_calls": 449,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 899,
+          "weatherapi": 449,
+          "supabase": 449
+        },
+        "data_transfer": {
+          "supabase_gb": 0.021
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      },
+      "50_users": {
+        "monthly_user_requests": 3750,
+        "actual_api_calls": 749,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 1499,
+          "weatherapi": 749,
+          "supabase": 749
+        },
+        "data_transfer": {
+          "supabase_gb": 0.036
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      },
+      "100_users": {
+        "monthly_user_requests": 7500,
+        "actual_api_calls": 1499,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 2999,
+          "weatherapi": 1499,
+          "supabase": 1499
+        },
+        "data_transfer": {
+          "supabase_gb": 0.072
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      },
+      "500_users": {
+        "monthly_user_requests": 37500,
+        "actual_api_calls": 7499,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 14999,
+          "weatherapi": 7499,
+          "supabase": 7499
+        },
+        "data_transfer": {
+          "supabase_gb": 0.358
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      },
+      "1000_users": {
+        "monthly_user_requests": 75000,
+        "actual_api_calls": 14999,
+        "cache_hit_rate": "80%",
+        "api_call_breakdown": {
+          "openweather": 29999,
+          "weatherapi": 14999,
+          "supabase": 14999
+        },
+        "data_transfer": {
+          "supabase_gb": 0.715
+        },
+        "costs_usd": {
+          "openweather": 0,
+          "weatherapi": 0,
+          "supabase": 0,
+          "total_monthly": 0
+        },
+        "cost_per_user_month": 0.0
+      }
+    }
+  },
+  "mobile_compatibility": {
+    "testing_status": "NOT YET TESTED ON REAL DEVICES",
+    "theoretical_compatibility": {
+      "pwa_features": {
+        "service_worker": "Supported on iOS 11.3+, Android Chrome 40+",
+        "add_to_home_screen": "Supported on iOS 13+, Android Chrome 31+",
+        "offline_mode": "Supported via LocalStorage (universal)",
+        "push_notifications": "NOT IMPLEMENTED"
+      },
+      "browser_support": {
+        "chrome_android": "Expected: Full support (Workbox + React)",
+        "safari_ios": "Expected: Full support (PWA since iOS 11.3)",
+        "samsung_internet": "Expected: Full support (Chromium-based)",
+        "firefox_android": "Expected: Partial (service worker supported)",
+        "edge_mobile": "Expected: Full support (Chromium-based)"
+      },
+      "responsive_design": {
+        "tailwind_mobile_first": "Yes (breakpoints: sm, md, lg, xl)",
+        "tested_viewports": "Desktop only (dev environment)",
+        "mobile_testing_needed": true
+      }
+    },
+    "how_to_test_mobile": {
+      "option_1_real_device": {
+        "method": "Deploy to Netlify (free), access from phone",
+        "steps": [
+          "1. Push code to GitHub",
+          "2. Connect Netlify to repo (free account)",
+          "3. Auto-deploy (takes 2-3 minutes)",
+          "4. Visit URL on phone browser",
+          "5. Test: Add to home screen, offline mode, responsiveness"
+        ],
+        "time_required": "15-20 minutes",
+        "cost": "FREE"
+      },
+      "option_2_browser_devtools": {
+        "method": "Chrome DevTools Device Emulation",
+        "steps": [
+          "1. Run frontend locally (npm run dev)",
+          "2. Open Chrome DevTools (F12)",
+          "3. Toggle device toolbar (Ctrl+Shift+M)",
+          "4. Select device (iPhone 12, Pixel 5, etc.)",
+          "5. Test responsive layout"
+        ],
+        "limitations": "Does not test: touch events, real mobile performance, PWA install",
+        "time_required": "5 minutes",
+        "cost": "FREE"
+      },
+      "option_3_ngrok_tunnel": {
+        "method": "Expose local server to phone via ngrok",
+        "steps": [
+          "1. Install ngrok (free)",
+          "2. Run backend: python manage.py runserver",
+          "3. Run frontend: npm run dev",
+          "4. Expose: ngrok http 3000",
+          "5. Access ngrok URL from phone on same network"
+        ],
+        "time_required": "10 minutes",
+        "cost": "FREE (ngrok free tier)"
+      }
+    },
+    "recommendation": "Use Option 2 (DevTools) NOW for basic testing, Option 1 (Netlify) for real device testing (20 min setup)"
+  }
+}
