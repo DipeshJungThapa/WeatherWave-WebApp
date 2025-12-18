@@ -97,20 +97,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "weatherwave_project.wsgi.application"
 
-import dj_database_url
-
+# Use SQLite for local development
 DATABASES = {
-    'default': dj_database_url.parse(
-        "postgresql://postgres.qgrkryybipeunbcvxukk:WeatherWave2025@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
-        conn_max_age=0,  # Set to 0 for transaction mode
-        ssl_require=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
-# Add connection pool settings for Supabase
-DATABASES['default']['OPTIONS'] = {
-    'connect_timeout': 10,
-}
+# Uncomment below for PostgreSQL/Supabase production
+# import dj_database_url
+# DATABASES = {
+#     'default': dj_database_url.parse(
+#         "postgresql://postgres.qgrkryybipeunbcvxukk:WeatherWave2025@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+#         conn_max_age=0,  # Set to 0 for transaction mode
+#         ssl_require=True,
+#     )
+# }
+# DATABASES['default']['OPTIONS'] = {
+#     'connect_timeout': 10,
+# }
 
 
 # import dj_database_url
