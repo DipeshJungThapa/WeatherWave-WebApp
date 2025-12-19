@@ -193,7 +193,7 @@ def get_weather_dashboard_data(location):
 
 | Method | MAE (°C) | RMSE (°C) | R² | Notes |
 |--------|----------|-----------|-----|-------|
-| **ML Model** | **0.4247** | **0.6980** | **0.9933** | Random Forest trained on 77 districts |
+| **ML Model** | **0.425** | **0.698** | **0.9933** | Random Forest trained on 77 districts |
 | API Persistence | 0.6701 | 0.9114 | 0.9886 | Best API strategy |
 | API Climatology | 1.3814 | 1.8220 | 0.9545 | Monthly averages |
 | API Linear Trend | 4.1564 | 4.5289 | 0.7187 | Poor performance |
@@ -202,7 +202,7 @@ def get_weather_dashboard_data(location):
 
 ```
 ML Improvement over Best API (Persistence):
-- MAE Reduction: 36.62% (0.6701 → 0.4247°C)
+- MAE Reduction: 36.62% (0.670 → 0.425°C)
 - RMSE Reduction: 23.42% (0.9114 → 0.6980°C)
 - Absolute Error Reduction: 0.2454°C
 
@@ -336,7 +336,7 @@ Results (Table VIII):
 
 | Method              | MAE (°C) | RMSE (°C) | R²    |
 |---------------------|----------|-----------|-------|
-| ML Model (Ours)     | 0.4247   | 0.6980    | 0.9933|
+| ML Model (Ours)     | 0.425    | 0.698     | 0.9933|
 | API Persistence     | 0.6701   | 0.9114    | 0.9886|
 | API Climatology     | 1.3814   | 1.8220    | 0.9545|
 | API Linear Trend    | 4.1564   | 4.5289    | 0.7187|

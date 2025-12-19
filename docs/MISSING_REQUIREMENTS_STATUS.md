@@ -104,7 +104,7 @@ are planned as future work to validate this domain-driven selection.
 
 **From `analysis/api_ml_comparison_summary.json`:**
 ```
-ML MAE: 0.4247
+ML MAE: 0.425
 Best API (Persistence) MAE: 0.6701
 Improvement: 36.62%
 Test samples: 24,187
