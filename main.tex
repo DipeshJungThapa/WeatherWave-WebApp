@@ -70,8 +70,10 @@ Weather forecasting, Random Forest, NASA POWER, PWA, Nepal climate, Localized Pr
 % --- SECTION I: INTRODUCTION ---
 \section{Introduction}
 Timely and accurate weather information has become more crucial as climate uncertainty is rapidly growing. Conventional weather services frequently find it difficult to provide localized, trustworthy, and easily accessible forecasts in areas like Nepal, which are known for their varied topography and microclimates. Precise insights are crucial for communities, from farmers to disaster relief organizations. However, existing platforms typically provide fragmented information, lack offline capabilities, and depend solely on third-party forecasts.
+
+
 WeatherWave is a cutting-edge web-based system that combines machine learning-based forecasting with real-time meteorological data to address these issues. Using historical datasets, it incorporates a Random Forest regression model to forecast temperatures for the following day, increasing accuracy above that of typical API outputs.  Additionally, even in areas with poor connectivity, the application's Progressive Web App (PWA) features allow offline data access and app-like usability.
- In summary, the goal of this research is to close the gap between contemporary web technologies, forecasting powered by machine learning, and real-world user requirements by developing a consistent, dependable, and flexible platform for weather data.
+ In summary, the goal of this research is to close the gap between contemporary web technologies, forecasting powered by machine learning, and real-world user requirements by comprehending a consistent, dependable, and flexible platform for weather data.
 
 
 \subsection{Motivation}
@@ -79,10 +81,10 @@ Nepal presents meteorological challenges due to its rapid climate variability an
 
 \subsection{Problem Statement}
 
-Most existing weather platforms rely exclusively on third-party numerical or API-based forecasts, which exhibit several critical limitations like insufficient spatial resolution for Nepal's diverse micro-climates, lack of offline functionality in low-connectivity regions and absence of localized predictive models trained on region-specific historical data. These gaps showcase the reduced forecast accuracy and limited accessibility for vulnerable populations in remote districts. These limitations highlight the need for a comprehensive, user-centric, and reliable weather platform capable of delivering accurate forecasts, localized insights, and stable access regardless of connectivity.
+As we studied most existing weather platforms rely exclusively on third-party numerical or API-based forecasts, which exhibit several critical limitations like insufficient spatial resolution for Nepal's diverse micro-climates, lack of offline functionality in low-connectivity regions and absence of localized predictive models trained on region-specific historical data. These gaps showcase the reduced forecast accuracy and limited accessibility for vulnerable populations in remote districts. These limitations highlight the need for a comprehensive, user-centric, and reliable weather platform capable of delivering accurate forecasts, localized insights, and stable access regardless of connectivity.
 \subsection{Objectives}
-
 \begin{itemize}
+
   \item To develop a Random Forest regression model trained on NASA POWER, satellite-derived reanalysis data covering all 77 administrative districts of Nepal for next-day temperature forecasting.
   \item To integrate real-time meteorological data from external weather APIs with machine learning predictions to provide hybrid forecasting capabilities.
   \item To implement a Progressive Web App (PWA) architecture to enable offline-capable delivery and ensure accessibility in low-bandwidth environments.
@@ -96,6 +98,7 @@ Accurate weather forecasting is critical for agriculture, disaster preparedness,
 \subsection{Machine Learning for Temperature Forecasting}
 Breiman introduced the Random Forest algorithm as an ensemble learning method combining multiple decision trees to improve predictive accuracy while reducing overfitting \cite{b1}. Its robustness to noisy data, interpretability through feature importance analysis, and low computational requirements have established it as a widely adopted baseline for meteorological regression tasks.
 Here, \cite{b2} findings directly support Random Forest deployment for localized temperature prediction across Nepal's diverse topography spanning the Terai plains, Hill regions, and high-altitude Himalayan zones.
+
 Recent work by El-Shawa et al. developed a Graph Neural Network framework for localized, high-resolution temperature forecasting, emphasizing equitable early warning systems for marginalized populations exposed to urban heat islands and under-resourced health infrastructure \cite{b3}. Similarly, Inoue and Kawabata proposed CNN-based surface temperature forecasting integrated with ensemble numerical weather prediction over medium-range periods\cite{b4}. Although these deep learning approaches demonstrate advanced capabilities, they require substantial computational resources unsuitable for lightweight deployment in low-resource regions a gap WeatherWave addresses through efficient Random Forest inference.
 
 \subsection{Satellite Reanalysis Datasets and Validation}
@@ -107,10 +110,13 @@ Singh et al. developed a Progressive Web App framework for weather forecasting, 
 Khattach et al. designed an end-to-end architecture for real-time IoT analytics and predictive maintenance using stream processing and machine learning pipelines \cite{b9}. Despite being focused on industrial applications, their architectural principles: automated retraining workflows and efficient data pipeline directly inform WeatherWave's design. 
 \subsection{Multi-Source Data Integration}
  Their \cite{b10} approach combined historical gauge measurements, satellite-derived estimates, and reanalysis products, reducing dependence on single data providers and mitigating temporal or spatial coverage gaps. WeatherWave implements similar multi-source fusion, integrating NASA POWER satellite data for ML predictions while maintaining OpenWeather and WeatherAPI forecasts as fallback sources.
-Yu et al. introduced deep learning models using multi-source data for long-sequence precipitation forecasting at the AAAI Conference on Artificial Intelligence \cite{b11}, showcasing advanced spatiotemporal modeling. However, their computationally intensive approach contrasts with WeatherWave's lightweight deployment prioritizing accessibility in resource-constrained environments. Steele et al. explored vision-language models for generating textual weather forecasts from meteorological imagery \cite{b12}, demonstrating AI's expanding role in meteorological communication, though WeatherWave focuses on quantitative temperature prediction with structured outputs for decision-making applications.
+Yu et al. introduced deep learning models using multi-source data for long-sequence precipitation forecasting at the AAAI Conference on Artificial Intelligence \cite{b11}, showcasing advanced spatiotemporal modeling. 
+
+However, their computationally intensive approach contrasts with WeatherWave's lightweight deployment prioritizing accessibility in resource-constrained environments. Steele et al. explored vision-language models for generating textual weather forecasts from meteorological imagery \cite{b12}, demonstrating AI's expanding role in meteorological communication, though WeatherWave focuses on quantitative temperature prediction with structured outputs for decision-making applications.
 \subsection{Research Gap and WeatherWave's Contribution}
 
 \begin{itemize}
+
   \item \textbf{Lack of localized models:} Global forecasting systems provide coarse predictions unsuitable for Nepal's micro-climatic diversity across 77 districts spanning 60m to 8,848m elevation.
   
   \item \textbf{Connectivity dependence:} Web-based platforms require continuous internet access, unreliable in rural mountainous regions with intermittent coverage.
@@ -186,6 +192,7 @@ The HTML5 Geolocation API resolved user coordinates to the nearest of 77 distric
 
 % --- SECTION IV: RESULTS ---
 \section{Results}
+This section presents the implementation-level outcomes of the proposed WeatherWave system, focusing on how the designed architecture, data pipeline, and model integration perform in practice. The results highlight system responsiveness, deployment feasibility, and operational effectiveness in delivering localized weather forecasts. Emphasis is placed on evaluating the system’s ability to operate efficiently under low-connectivity conditions. These outcomes validate the practical applicability of the proposed design in real-world deployment scenarios.
 
 \subsection{Overall Model Performance}
 
@@ -208,20 +215,17 @@ $R^2$ & 0.9934 \\
 
 The high $R^2$ value of 0.9934 is consistent with established meteorological principles, as surface temperature exhibits strong 24-hour autocorrelation in continental climates. Consequently, short-term thermal persistence acts as a dominant predictor for next-day temperature forecasting. Training convergence was rapid, with performance stabilizing during the initial ensemble construction. Cross-validation across temporal folds further confirmed stable generalization, with MAE variance remaining below $0.02^\circ$C across seasons and geographic strata.
 
-\FloatBarrier
-
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{feature_importance_plot.png}
 \caption{Feature importance of the Random Forest model for next-day temperature prediction.}
+\vspace{-2mm}
 \label{fig:feature_importance}
 \end{figure}
 
-Fig.~\ref{fig:feature_importance} illustrates the relative importance of input variables used by the Random Forest model ($n=5$ trees). Current-day temperature (\texttt{Temp\_2m}) dominates the feature set, accounting for 98.98\% of total importance, reflecting strong 24-hour thermal persistence in Nepal's continental climate zones. Secondary variables such as minimum and maximum temperature, atmospheric pressure, wind speed, and humidity provide additional atmospheric context. Geographic features, including latitude, longitude, and district encoding, contribute marginally, indicating limited redundancy and effective spatial generalization.
+Fig.~\ref{fig:feature_importance} illustrates the relative importance of input variables used by the Random Forest model ($n=5$ trees). Current-day temperature (\texttt{Temp\_2m}) dominates the feature set, accounting for 98.98\% of total importance, reflecting strong 24-hour thermal persistence in Nepal’s continental climate zones. Secondary variables such as minimum and maximum temperature, atmospheric pressure, wind speed, and humidity provide additional atmospheric context. Geographic features, including latitude, longitude, and district encoding, contribute marginally, indicating limited redundancy and effective spatial generalization.
 
-\FloatBarrier
-
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_actual_vs_predicted.png}
 \caption{Observed versus predicted next-day temperatures on the test set.}
@@ -229,8 +233,6 @@ Fig.~\ref{fig:feature_importance} illustrates the relative importance of input v
 \end{figure}
 
 Fig.~\ref{fig:actual_vs_pred} presents a scatter plot of observed and predicted next-day temperatures for the held-out test set ($n=24{,}187$). The tight clustering of points around the diagonal line ($y = x$) demonstrates high predictive accuracy across the full temperature range from $-25^\circ$C to $+40^\circ$C. The model achieves an MAE of $0.424^\circ$C, RMSE of $0.695^\circ$C, and $R^2 = 0.9934$, indicating that predictions typically deviate by less than half a degree from observed values.
-
-\FloatBarrier
 
 \begin{figure}[htbp]
 \centering
@@ -240,12 +242,9 @@ Fig.~\ref{fig:actual_vs_pred} presents a scatter plot of observed and predicted 
 \end{figure}
 
 Fig.~\ref{fig:error_hist} shows the distribution of prediction residuals (predicted minus actual temperature). The residuals are sharply centered near zero, with a mean error of $-0.002^\circ$C, indicating negligible systematic bias. The approximately symmetric, Gaussian-shaped distribution with a standard deviation of $0.695^\circ$C (equal to RMSE) confirms stable and well-behaved error characteristics across the dataset.
-
-\FloatBarrier
-
+%\FloatBarrier
 \subsection{Comparative Models and Baselines}
-
-\begin{table}[htbp]
+\begin{table}[H]
 \caption{Comparison of Forecasting Methods (MAE on Test Set)}
 \label{tab:model_comparison}
 \centering
@@ -261,9 +260,7 @@ API Persistence Forecast & 0.671 \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:model_comparison} compares the proposed Random Forest model with commonly used regression baselines and an API-based persistence forecast. The Random Forest achieves the lowest MAE ($0.424^\circ$C), outperforming Decision Tree Regression, Linear Regression, and the persistence-based API forecast. These results demonstrate the effectiveness of ensemble learning in capturing nonlinear temperature dynamics while remaining computationally efficient for operational deployment.
-
-\FloatBarrier
+Table~\ref{tab:model_comparison} compares the proposed Random Forest model with commonly used regression baselines and an API-based persistence forecast (defined as using current-day temperature as the next-day prediction: $\hat{T}_{t+1} = T_t$). The Random Forest achieves the lowest MAE ($0.424^\circ$C), outperforming Decision Tree Regression, Linear Regression, and the persistence-based API forecast. These results demonstrate the effectiveness of ensemble learning in capturing nonlinear temperature dynamics while remaining computationally efficient for operational deployment.
 
 \subsection{API vs.\ ML Comparative Evaluation}
 
@@ -274,15 +271,11 @@ Table~\ref{tab:model_comparison} compares the proposed Random Forest model with 
 \label{fig:district_mae}
 \end{figure}
 
-Fig.~\ref{fig:district_mae} compares district-level MAE values between the Random Forest model and API persistence forecasting for 32 representative districts selected from all 77 administrative districts. Each bar pair represents the average error computed across approximately 300--400 test-set days per district. Overall, the Random Forest model achieves lower MAE in 59 out of 77 districts (76.6\%), with particularly strong improvements observed in districts such as Parbat, Sindhuli, and Bhaktapur. These findings indicate that the machine learning approach provides more consistent accuracy across Nepal's diverse topography, while API persistence forecasts exhibit higher variability, especially in remote and high-altitude regions.
-
-\FloatBarrier
+Fig.~\ref{fig:district_mae} compares district-level MAE values between the Random Forest model and API persistence forecasting for 32 representative districts selected from all 77 administrative districts. Each bar pair represents the average error computed across approximately 300--400 test-set days per district. Overall, the Random Forest model achieves lower MAE in 59 out of 77 districts (76.6\%), with particularly strong improvements observed in districts such as Parbat, Sindhuli, and Bhaktapur. These findings indicate that the machine learning approach provides more consistent accuracy across Nepal’s diverse topography, while API persistence forecasts exhibit higher variability, especially in remote and high-altitude regions.
 
 \subsection{Statistical Validation}
 
-Paired statistical analysis was conducted across 77 district-level MAE pairs, where each district's MAE represents the average error across approximately 300--400 test-set days. A paired $t$-test yielded $t(76) = 10.63$ with $p < 0.001$, while the Wilcoxon signed-rank test produced $W = 2766$ with $p < 0.001$. The effect size was large (Cohen's $d = 1.21$), with a mean MAE reduction of approximately $0.246^\circ$C favoring the Random Forest model.
-
-\FloatBarrier
+Paired statistical analysis was conducted across 77 district-level MAE pairs, where each district’s MAE represents the average error across approximately 300--400 test-set days. A paired $t$-test yielded $t(76) = 10.63$ with $p < 0.001$, while the Wilcoxon signed-rank test produced $W = 2766$ with $p < 0.001$. The effect size was large (Cohen’s $d = 1.21$), with a mean MAE reduction of approximately $0.246^\circ$C favoring the Random Forest model.
 
 \begin{figure}[htbp]
 \centering
@@ -293,11 +286,9 @@ Paired statistical analysis was conducted across 77 district-level MAE pairs, wh
 
 Fig.~\ref{fig:mae_diff} illustrates the distribution of MAE differences (API MAE minus ML MAE) across all 77 districts. Positive values indicate districts where the machine learning model outperforms API persistence forecasting. The distribution is strongly right-skewed, with a mean improvement of $0.246^\circ$C, confirming that the ML model achieves superior performance in the majority of districts. The bimodal structure suggests clusters of districts with substantial ML gains and others where performance differences are comparatively marginal.
 
-\FloatBarrier
-
 % --- SECTION VI: DISCUSSION & FINDINGS ---
 \section{Discussion and Key Findings}
-The results demonstrate that the Random Forest model achieves high predictive precision (MAE = $0.424\,^\circ\text{C}$, $R^2 = 0.9934$) while maintaining the computational efficiency required for real-time edge deployment. The daily automated retraining pipeline provides critical resilience against seasonal transitions and localized climatic shifts, ensuring that the model remains calibrated to the most recent atmospheric trends in Nepal's highly dynamic environment. The sub-50ms inference latency enables real-time user interaction without server-side queueing, which is critical for mobile users in regions with intermittent connectivity.
+The results demonstrate that the Random Forest model achieves high predictive precision (MAE = $0.424\,^\circ\text{C}$, $R^2 = 0.9934$) while maintaining the computational efficiency required for real-time edge deployment. The daily automated retraining pipeline provides critical resilience against seasonal transitions and localized climatic shifts, ensuring that the model remains calibrated to the most recent atmospheric trends in Nepal’s highly dynamic environment. The sub-50ms inference latency enables real-time user interaction without server-side queueing, which is critical for mobile users in regions with intermittent connectivity.
 
 
 \textbf{Localized performance variation:} The proposed model outperformed the API persistence baseline (defined as using current-day temperature as the next-day forecast) in 59 out of 77 districts (76.6\%). In the remaining eighteen districts (including Dang, Ilam, Achham, Solukhumbu, Banke, and Mahottari), the API baseline demonstrated marginally lower error, with improvements ranging from 1--13\%. This regional variation is attributable to comparatively limited training samples ($n < 400$) and high localized climatic variability in these specific areas. Despite these cases, the overall mean MAE reduction of approximately $0.246\,^\circ\text{C}$ across all districts is statistically significant ($p < 0.001$, Cohen's $d = 1.21$), confirming the system's broad utility.
@@ -307,13 +298,12 @@ The results demonstrate that the Random Forest model achieves high predictive pr
 % --- SECTION VII: CONCLUSION ---
 \section{Conclusion}
 WeatherWave demonstrates that localized machine learning models integrated with modern web architectures can significantly improve forecasting accuracy across Nepal's diverse terrain. The Random Forest model achieves MAE of $0.424\,^\circ\text{C}$ and outperforms API-based forecasts in 76.6\% of districts, with statistically significant improvements confirmed through paired testing ($p < 0.001$, Cohen's $d = 1.21$). The PWA based delivery ensures accessibility in low-connectivity environments, while the daily automated retraining pipeline maintains model relevance against seasonal drift.
-
-\subsection{Limitations and Future Work}
+\section{Limitations and Future Work}
 There are several technical and geographic constraints which provide opportunities for further refinement:
 \begin{itemize}
-  \item \textbf{Data coverage gaps:} The historical records for certain Himalayan districts suffer from compromised effective coverage in early satellite reanalysis years, leading to higher amount of uncertainty in those specific locales.
-  \item \textbf{Geographic encoding:} For now district label encoding tends to be efficient but  future work will evaluate explicit latitude and longitude features to better capture intra-district spatial heterogeneity.
-  \item \textbf{Model horizon and complexity:} In order to extend forecasting horizon beyond 24 hours, sequence based architectures like Long Short Term Memory(LSTM) networks can be explored.
+  \item \textbf{Data coverage gaps:} The historical records for certain Himalayan districts suffer from compromised effective coverage in early satellite reanalysis years, leading to higher amount of uncertainity in those specific locales.
+  \item \textbf{Geographic encoding:} While latitude and longitude are included as fixed spatial anchors, future work will explore richer spatial embeddings (e.g., elevation gradients, proximity to water bodies) to better capture intra-district heterogeneity.
+  \item \textbf{Model horizon and complexity:}In order to extend forecasting horizon beyond 24 hours, sequence based architectures like Long Short Term Memory(LSTM) networks can be explored.
   \item \textbf{Ground-truth validation:} Integrating local IoT meteorological station data would strengthen validation and reduce reliance on satellite derived reanalysis targets.
 \end{itemize}
 These enhancements will strengthen WeatherWave's utility for agriculture, disaster preparedness, and public health applications across Nepal's diverse climatic zones.
@@ -323,40 +313,40 @@ These enhancements will strengthen WeatherWave's utility for agriculture, disast
 \begin{thebibliography}{00}
 
 \bibitem{b1}
-L. Breiman, "Random forests," \emph{Machine Learning}, vol. 45, no. 1, pp. 5--32, 2001, doi: 10.1023/A:1010933404324.
+L. Breiman, “Random forests,” \emph{Machine Learning}, vol. 45, no. 1, pp. 5--32, 2001, doi: 10.1023/A:1010933404324.
 
 \bibitem{b2}
-A. Malakar, S. Mukhopadhyay, and P. Dutta, "Short-term temperature forecasting using machine learning approaches in complex terrain," \emph{IEEE Access}, vol. 9, pp. 115233--115245, 2021, doi: 10.1109/ACCESS.2021.3104514.
+A. Malakar, S. Mukhopadhyay, and P. Dutta, “Short-term temperature forecasting using machine learning approaches in complex terrain,” \emph{IEEE Access}, vol. 9, pp. 115233--115245, 2021, doi: 10.1109/ACCESS.2021.3104514.
 
 \bibitem{b3}
-J. El-Shawa, E. Bagheri, S. A. Kocak, and Y. Mohsenzadeh, "A graph neural network approach for localized and high-resolution temperature forecasting," in \emph{Proc. NeurIPS Workshop on Tackling Climate Change with Machine Learning}, 2025, arXiv:2512.00546.
+J. El-Shawa, E. Bagheri, S. A. Kocak, and Y. Mohsenzadeh, “A graph neural network approach for localized and high-resolution temperature forecasting,” in \emph{Proc. NeurIPS Workshop on Tackling Climate Change with Machine Learning}, 2025, arXiv:2512.00546.
 
 \bibitem{b4}
-T. Inoue and T. Kawabata, "CNN-based surface temperature forecasts with ensemble numerical weather prediction over medium-range forecast periods," arXiv:2507.18937, 2025.
+T. Inoue and T. Kawabata, “CNN-based surface temperature forecasts with ensemble numerical weather prediction over medium-range forecast periods,” arXiv:2507.18937, 2025.
 
 \bibitem{b5}
-H. Hersbach \emph{et al.}, "The ERA5 global reanalysis," \emph{Quart. J. Roy. Meteorol. Soc.}, vol. 146, no. 730, pp. 1999--2049, 2020, doi: 10.1002/qj.3803.
+H. Hersbach \emph{et al.}, “The ERA5 global reanalysis,” \emph{Quart. J. Roy. Meteorol. Soc.}, vol. 146, no. 730, pp. 1999--2049, 2020, doi: 10.1002/qj.3803.
 
 \bibitem{b6}
-G. C. Rodrigues and R. P. Braga, "Evaluation of NASA POWER reanalysis products to estimate daily weather variables in a hot summer Mediterranean climate," \emph{Agronomy}, vol. 11, no. 6, Art. no. 1207, 2021, doi: 10.3390/agronomy11061207.
+G. C. Rodrigues and R. P. Braga, “Evaluation of NASA POWER reanalysis products to estimate daily weather variables in a hot summer Mediterranean climate,” \emph{Agronomy}, vol. 11, no. 6, Art. no. 1207, 2021, doi: 10.3390/agronomy11061207.
 
 \bibitem{b7}
-H. K. Tayyeh and R. Mohammed, "Analysis of NASA POWER reanalysis products to predict temperature and precipitation in Euphrates River Basin," \emph{J. Hydrol.}, vol. 619, Art. no. 129327, 2023, doi: 10.1016/j.jhydrol.2023.129327.
+H. K. Tayyeh and R. Mohammed, “Analysis of NASA POWER reanalysis products to predict temperature and precipitation in Euphrates River Basin,” \emph{J. Hydrol.}, vol. 619, Art. no. 129327, 2023, doi: 10.1016/j.jhydrol.2023.129327.
 
 \bibitem{b8}
-A. Singh, S. Kumar, and R. Sharma, "Progressive web applications for real-time weather forecasting systems," \emph{Int. J. Adv. Comput. Sci. Appl.}, vol. 10, no. 5, pp. 234--241, 2019, doi: 10.14569/IJACSA.2019.0100532.
+A. Singh, S. Kumar, and R. Sharma, “Progressive web applications for real-time weather forecasting systems,” \emph{Int. J. Adv. Comput. Sci. Appl.}, vol. 10, no. 5, pp. 234--241, 2019, doi: 10.14569/IJACSA.2019.0100532.
 
 \bibitem{b9}
-O. Khattach, O. Moussaoui, and M. Hassine, "End-to-end architecture for real-time IoT analytics and predictive maintenance using stream processing and ML pipelines," \emph{Sensors}, vol. 25, no. 9, Art. no. 2945, 2025, doi: 10.3390/s25092945.
+O. Khattach, O. Moussaoui, and M. Hassine, “End-to-end architecture for real-time IoT analytics and predictive maintenance using stream processing and ML pipelines,” \emph{Sensors}, vol. 25, no. 9, Art. no. 2945, 2025, doi: 10.3390/s25092945.
 
 \bibitem{b10}
-A. Tesfaye, T. Demissie, and D. Teka, "Enhancing precipitation forecasting through multi-source data integration with machine learning: A case study in the Upper Blue Nile Basin," \emph{Hydrology}, vol. 11, no. 2, Art. no. 23, 2024, doi: 10.3390/hydrology11020023.
+A. Tesfaye, T. Demissie, and D. Teka, “Enhancing precipitation forecasting through multi-source data integration with machine learning: A case study in the Upper Blue Nile Basin,” \emph{Hydrology}, vol. 11, no. 2, Art. no. 23, 2024, doi: 10.3390/hydrology11020023.
 
 \bibitem{b11}
-D. Yu, W. Feng, K. Lin, X. Li, Y. Ye, C. Luo, and W. Du, "Integrating multi-source data for long sequence precipitation forecasting," in \emph{Proc. AAAI Conf. Artif. Intell.}, vol. 39, pp. 28539--28547, 2025.
+D. Yu, W. Feng, K. Lin, X. Li, Y. Ye, C. Luo, and W. Du, “Integrating multi-source data for long sequence precipitation forecasting,” in \emph{Proc. AAAI Conf. Artif. Intell.}, vol. 39, pp. 28539--28547, 2025.
 
 \bibitem{b12}
-E. C. C. Steele \emph{et al.}, "The promising potential of vision-language models for the generation of textual weather forecasts," arXiv:2512.03623, 2025.
+E. C. C. Steele \emph{et al.}, “The promising potential of vision-language models for the generation of textual weather forecasts,” arXiv:2512.03623, 2025.
 
 \end{thebibliography}
 
